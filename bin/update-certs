@@ -1,0 +1,18 @@
+#!/bin/sh
+
+LOCK=${CERTBOT}/.lck
+
+if [ "x$LOCK" = "x" ]; then
+    echo "CERTBOT_LOCK is undefined."
+    exit 1
+fi
+
+if [ -e ${LOCK} ]; then
+    exit 0
+else
+    touch ${LOCK}
+fi
+
+/usr/bin/certbot renew --no-self-upgrade --post-hook "/usr/sbin/nginx -s reload"
+
+rm ${LOCK}
