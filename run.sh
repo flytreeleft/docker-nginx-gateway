@@ -2,7 +2,7 @@
 
 DCR_NAME=nginx-gateway
 DCR_IMAGE=flytreeleft/nginx-gateway
-DCR_IMAGE_VERSION=1.11.2
+DCR_IMAGE_VERSION=1.11.2-r1
 
 DEBUG=false
 ULIMIT=655360
