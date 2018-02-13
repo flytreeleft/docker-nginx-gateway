@@ -6,6 +6,7 @@ DCR_IMAGE_VERSION=1.11.2-r1
 
 DEBUG=false
 ULIMIT=655360
+ENABLE_CUSTOM_ERROR_PAGE=true
 CERT_EMAIL=nobody@example.com
 STORAGE=/var/lib/nginx-gateway
 
@@ -19,9 +20,11 @@ docker run -d --name ${DCR_NAME} \
                 -p 443:443 -p 80:80 \
                 -e DEBUG=${DEBUG} \
                 -e CERT_EMAIL=${CERT_EMAIL} \
+                -e ENABLE_CUSTOM_ERROR_PAGE=${ENABLE_CUSTOM_ERROR_PAGE} \
                 -v /usr/share/zoneinfo:/usr/share/zoneinfo:ro \
                 -v /etc/localtime:/etc/localtime:ro \
                 -v ${STORAGE}/letsencrypt:/etc/letsencrypt \
                 -v ${STORAGE}/vhost.d:/etc/nginx/vhost.d \
                 -v ${STORAGE}/stream.d:/etc/nginx/stream.d \
+                -v ${STORAGE}/epage.d:/etc/nginx/epage.d \
                 ${DCR_IMAGE}:${DCR_IMAGE_VERSION}

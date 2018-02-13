@@ -1,0 +1,106 @@
+<!-- Source from http://cssdeck.com/labs/the-matrix, https://codepen.io/The1462/full/FtBmy/ -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+    <title>{{status}} - {{status_msg}}</title>
+    <style type="text/css">
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            overflow: hidden;
+            font-size: 100%;
+        }
+
+        body {
+            background: #000;
+            color: #1d8a1f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .message {
+            color: #1d8a1f;
+            min-width: 250px;
+            max-width: 50%;
+            padding: 10px;
+            border: 1px solid #0d520e;
+            background: #030302;
+            z-index: 10;
+        }
+
+        .message h1 {
+            font-size: 1.2em;
+            border-bottom: 1px solid #0D520E;
+            padding-bottom: .6em;
+            margin-bottom: .8em;
+        }
+
+        .message footer {
+            border-top: 1px solid #0D520E;
+            margin-top: .8em;
+            font-size: .6rem;
+            padding-top: .6em;
+            text-align: right;
+        }
+
+        .matrix {
+            position: fixed;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="message">
+        <h1>An error has occurred: {{status}} {{status_msg}}</h1>
+        <p>
+            <b>Boy</b>: Do not try and bend the website. That's impossible. Instead... only try to realize the truth.
+            <br>
+            <b>Neo</b>: What truth?
+            <br>
+            <b>Boy</b>: Perhaps, the error cannot be fixed in a short time.
+            <br>
+            <b>Neo</b>: Oh, No!
+            <br>
+            <b>Boy</b>: Then you'll see, that it is not the website that bends, it is only yourself.
+        </p>
+        <footer>
+            Animation based on
+            <a href="http://cssdeck.com/labs/the-matrix">Matrix Canvas Code</a>
+            (by <a href="http://cssdeck.com/user/shaundunne">Shaun Dunne</a>)
+            and <a href="https://codepen.io/The1462/full/FtBmy/">Matrix Rain</a>
+            (by <a href="https://codepen.io/The1462">Mustafa Zeytin</a>)
+        </footer>
+    </div>
+    <canvas class="matrix" id="matrix_canvas"></canvas>
+</body>
+<script type="text/javascript">
+    var canvas = document.getElementById('matrix_canvas');
+    var width = canvas.width = window.screen.width;
+    var height = canvas.height = window.screen.height;
+    var letters = (new Array(256)).join(1).split('');
+
+    var draw = function () {
+        canvas.getContext('2d').fillStyle = 'rgba(0,0,0,.05)';
+        canvas.getContext('2d').fillRect(0, 0, width, height);
+        canvas.getContext('2d').fillStyle = '#0F0';
+        letters.map(function (y, index) {
+            var text = String.fromCharCode(3e4 + Math.random() * 33);
+            var x = index * 10;
+
+            canvas.getContext('2d').fillText(text, x, y);
+            letters[index] = (y > 758 + Math.random() * 1e4) ? 0 : y + 10;
+        });
+    };
+    setInterval(draw, 33);
+</script>
+</html>

@@ -189,8 +189,11 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 ENV DEBUG=false
 ENV DOMAIN=
 ENV CERT_EMAIL=
+ENV ENABLE_CUSTOM_ERROR_PAGE=false
+ENV DEFAULT_ERROR_PAGES=/usr/share/nginx/error-pages
 ENV VHOSTD=/etc/nginx/vhost.d
 ENV STREAMD=/etc/nginx/stream.d
+ENV EPAGED=/etc/nginx/epage.d
 ENV CERTBOT=/etc/letsencrypt
 
 RUN apk add --update openssl certbot ca-certificates
@@ -204,8 +207,9 @@ RUN mkdir -p /var/log/cron /var/log/letsencrypt
 RUN rm -f /etc/nginx/conf.d/default.conf
 
 ADD config/nginx.conf /etc/nginx/nginx.conf
-ADD config/02_proxy.conf /etc/nginx/conf.d/02_proxy.conf
+ADD config/00_vars.conf /etc/nginx/conf.d/00_vars.conf
 ADD config/01_ssl.conf /etc/nginx/conf.d/01_ssl.conf
+ADD config/02_proxy.conf /etc/nginx/conf.d/02_proxy.conf
 ADD config/10_default.conf /etc/nginx/conf.d/10_default.conf
 
 # NOTE: The other crontab file will not be scaned
@@ -216,10 +220,12 @@ ADD bin/update-certs /usr/bin/update-certs
 ADD bin/watch-config /usr/bin/watch-config
 ADD bin/entrypoint.sh /entrypoint.sh
 
-RUN mkdir -p ${VHOSTD} ${STREAMD} ${CERTBOT}
+ADD error-pages ${DEFAULT_ERROR_PAGES}
+
+RUN mkdir -p ${VHOSTD} ${STREAMD} ${CERTBOT} ${EPAGED}
 RUN chmod +x /usr/bin/build-certs /usr/bin/update-certs /usr/bin/watch-config /entrypoint.sh
 
-VOLUME ["${VHOSTD}", "${STREAMD}", "${CERTBOT}"]
+VOLUME ["${VHOSTD}", "${STREAMD}", "${EPAGED}", "${CERTBOT}"]
 
 EXPOSE 80 443
 

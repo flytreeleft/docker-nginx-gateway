@@ -1,0 +1,225 @@
+<!-- Source from http://cssdeck.com/labs/css3-loader-newtons-cradle -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+    <title>{{status}} - {{status_msg}}</title>
+    <style type="text/css">
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            overflow: hidden;
+            font-size: 100%;
+        }
+
+        body {
+            background: #ede9de;
+            color: #333;
+            text-align: center;
+        }
+
+        a, a:visited, a:hover {
+            text-decoration: none;
+            color: #db5989;
+        }
+
+        a:hover {
+            color: #a05772;
+        }
+
+        .heading {
+            font-size: 2em;
+            margin: 1em 0 0 0;
+        }
+
+        .heading footer {
+            font-size: 1rem;
+            color: #777;
+        }
+
+        .cradle {
+            display: inline-block;
+        }
+
+        .cord {
+            padding-top: 100px;
+            width: 15px;
+            transform: rotate(0deg);
+            transform-origin: 50% 50%;
+            float: left;
+        }
+
+        .ball {
+            background: #333;
+            width: 15px;
+            height: 15px;
+            float: left;
+            border-radius: 50%;
+        }
+
+        .shadows {
+            clear: left;
+            padding-top: 20px;
+            margin-left: -2px;
+        }
+
+        .shadows div {
+            float: left;
+            margin-left: 2px;
+            width: 13px;
+            height: 3px;
+            border-radius: 50%;
+            box-shadow: 0 0 3px rgba(204, 204, 204, 0.3);
+            background: rgba(204, 204, 204, 0.3);
+        }
+
+        .leftMove {
+            animation: leftBall .5s ease-in-out 0s infinite alternate;
+        }
+
+        .rightMove {
+            animation: rightBall .5s ease-in-out 0s infinite alternate;
+        }
+
+        .leftShadow {
+            animation: leftShadowN .5s ease-in-out 0s infinite alternate;
+        }
+
+        .rightShadow {
+            animation: rightShadowN .5s ease-in-out 0s infinite alternate;
+        }
+
+        @keyframes leftBall {
+            0% {
+                transform: rotate(0deg) translateY(0px);
+            }
+            /*this pauses the ball at the begining*/
+            50% {
+                transform: rotate(0deg) translateY(0px);
+            }
+            100% {
+                transform: rotate(50deg) translateY(-20px);
+            }
+        }
+
+        @keyframes rightBall {
+            0% {
+                transform: rotate(-50deg) translateY(-20px);
+            }
+            /*this pauses the ball at the begining*/
+            50% {
+                transform: rotate(0deg) translateY(0px);
+            }
+            100% {
+                transform: rotate(0deg) translateY(0px) translateX(0px);
+            }
+        }
+
+        @keyframes leftShadowN {
+            0% {
+                transform: translateX(0px);
+            }
+            /*this pauses the ball at the begining*/
+            50% {
+                transform: translateX(0px);
+            }
+
+            100% {
+                transform: translateX(-25px);
+            }
+        }
+
+        @keyframes rightShadowN {
+            0% {
+                transform: translateX(25px);
+            }
+            /*this pauses the ball at the begining*/
+            50% {
+                transform: translateY(0px);
+            }
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        .cord:nth-of-type(1) .ball {
+            background: #335672;
+        }
+
+        .cord:nth-of-type(2) .ball {
+            background: #35506b;
+        }
+
+        .cord:nth-of-type(3) .ball {
+            background: #5f4e60;
+        }
+
+        .cord:nth-of-type(4) .ball {
+            background: #924a4e;
+        }
+
+        .cord:nth-of-type(5) .ball {
+            background: #a73a33;
+        }
+
+        .cord:nth-of-type(6) .ball {
+            background: #cf4231;
+        }
+
+        .cord:nth-of-type(7) .ball {
+            background: #df3e2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="heading">
+        <h1>{{status}} {{status_msg}}</h1>
+        <footer>
+            Animation based on
+            <a href="http://cssdeck.com/labs/css3-loader-newtons-cradle">Newton's Cradle</a>
+            by <a href="http://cssdeck.com/user/TNTbits">dlsooklb</a>
+        </footer>
+    </div>
+    <div class="container">
+        <div class="cradle">
+            <div class="cord leftMove">
+                <div class="ball"></div>
+            </div>
+            <div class="cord">
+                <div class="ball"></div>
+            </div>
+            <div class="cord">
+                <div class="ball"></div>
+            </div>
+            <div class="cord">
+                <div class="ball"></div>
+            </div>
+            <div class="cord">
+                <div class="ball"></div>
+            </div>
+            <div class="cord">
+                <div class="ball"></div>
+            </div>
+            <div class="cord rightMove">
+                <div class="ball" id="first"></div>
+            </div>
+            <div class="shadows">
+                <div class="leftShadow"></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div class="rightShadow"></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

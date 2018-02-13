@@ -18,6 +18,7 @@ fi
 
 VHOSTS=${VHOSTD}
 STREAMS=${STREAMD}
+EPAGES=${EPAGED}
 REF_FILE=/tmp/config-check.ref
 
 update_ref() {
@@ -39,7 +40,7 @@ is_newer() {
 
 while true; do
     sleep 10s
-    if [[ ! -e "${REF_FILE}" || $(is_newer "${VHOSTS}") = "true" || $(is_newer "${STREAMS}") = "true" ]]; then
+    if [[ ! -e "${REF_FILE}" || $(is_newer "${VHOSTS}") = "true" || $(is_newer "${STREAMS}") = "true" || $(is_newer "${EPAGES}") = "true" ]]; then
         update_ref "${REF_FILE}"
         eval "${CMD}"
     fi
