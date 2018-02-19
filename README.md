@@ -1,11 +1,16 @@
 Nginx Gateway
 ===============================
 
-A tiny, flexable, configurable nginx gateway (reverse proxy) docker image based on alpine.
+A tiny, flexable, configurable Nginx gateway (reverse proxy) Docker image based on the [alpine image](https://hub.docker.com/_/alpine/).
+
+## Features
+
+- Enable HTTPS with [Let’s Encrypt](https://letsencrypt.org/).
+- Automatically register [Let’s Encrypt](https://letsencrypt.org/) certificate for new domain and update it via [certbot](https://certbot.eff.org/docs/using.html).
+- Support random custom error pages.
 
 ## Thanks
 
-- [Let’s Encrypt](https://letsencrypt.org/)
 - [nginxinc/docker-nginx](https://github.com/nginxinc/docker-nginx)
 - [sebble/docker-images/letsencrypt-certbot](https://github.com/sebble/docker-images/tree/master/letsencrypt-certbot)
 - [nrollr/nginx.conf](https://gist.github.com/nrollr/9a39bb636a820fb97eec2ed85e473d38)
