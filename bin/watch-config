@@ -1,14 +1,14 @@
 #!/bin/sh
 
 while [[ -n $1 ]]; do
-  case $1 in
-    --)
-        shift
-        CMD=$@
-        break
-    ;;
-  esac
-  shift
+    case $1 in
+        --)
+            shift
+            CMD=$@
+            break
+        ;;
+    esac
+    shift
 done
 
 if [ "x$CMD" = "x" ]; then
@@ -16,10 +16,9 @@ if [ "x$CMD" = "x" ]; then
     exit 0
 fi
 
-VHOSTS=${VHOSTD}
-STREAMS=${STREAMD}
-EPAGES=${EPAGED}
-REF_FILE=/tmp/config-check.ref
+VHOSTS="${VHOSTD}"
+STREAMS="${STREAMD}"
+EPAGES="${EPAGED}"
 
 update_ref() {
     local file=$1
@@ -29,19 +28,26 @@ update_ref() {
 }
 
 is_newer() {
-    local dir=$1
+    local ref="$1"
+    local result="false"
 
-    if [[ "$(find "${dir}" -newer "${REF_FILE}")" != "x" ]]; then
-        echo "true"
-    else
-        echo "false"
-    fi
+    shift
+    while [[ -n $1 ]]; do
+        if [[ ! -e "$ref" || "$(find "$1" -newer "$ref")" != "x" ]]; then
+            result="true"
+            break
+        fi
+        shift
+    done
+
+    echo "$result"
 }
 
+REF_FILE=/tmp/config-check.ref
 while true; do
-    sleep 10s
-    if [[ ! -e "${REF_FILE}" || $(is_newer "${VHOSTS}") = "true" || $(is_newer "${STREAMS}") = "true" || $(is_newer "${EPAGES}") = "true" ]]; then
+    if [[ $(is_newer "${REF_FILE}" "${VHOSTS}" "${STREAMS}" "${EPAGES}") = "true" ]]; then
         update_ref "${REF_FILE}"
         eval "${CMD}"
     fi
+    sleep 10s
 done
