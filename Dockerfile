@@ -220,7 +220,7 @@ ADD bin/update-certs /usr/bin/update-certs
 ADD bin/watch-config /usr/bin/watch-config
 ADD bin/entrypoint.sh /entrypoint.sh
 
-ADD error-pages ${DEFAULT_ERROR_PAGES}
+ADD config/error-pages ${DEFAULT_ERROR_PAGES}
 
 RUN mkdir -p ${VHOSTD} ${STREAMD} ${CERTBOT} ${EPAGED}
 RUN chmod +x /usr/bin/build-certs /usr/bin/update-certs /usr/bin/watch-config /entrypoint.sh
