@@ -1,7 +1,7 @@
 Nginx Gateway
 ===============================
 
-A tiny, flexable, configurable Nginx gateway (reverse proxy) Docker image based on the [alpine image](https://hub.docker.com/_/alpine/).
+A tiny, flexable, configurable Nginx Gateway (reverse proxy) Docker image based on [alpine image](https://hub.docker.com/_/alpine/).
 
 ## Features
 
@@ -12,7 +12,7 @@ A tiny, flexable, configurable Nginx gateway (reverse proxy) Docker image based 
 - Support to proxy HTTP and TCP stream.
 - Make individual configuration for every domain to serve static files or to proxy the backend servers.
 
-## How to use this image
+## How to use?
 
 ### Image version
 
@@ -43,7 +43,6 @@ CERT_EMAIL=nobody@example.com
 STORAGE=/var/lib/nginx-gateway
 
 ulimit -n ${ULIMIT}
-# http://serverfault.com/questions/786389/nginx-docker-container-cannot-see-client-ip-when-using-iptables-false-option#answer-788088
 docker run -d --name ${DCR_NAME} \
                 --restart always \
                 --network host \
@@ -67,13 +66,14 @@ docker run -d --name ${DCR_NAME} \
 
 ## Thanks
 
-- [nginxinc/docker-nginx](https://github.com/nginxinc/docker-nginx)
-- [sebble/docker-images/letsencrypt-certbot](https://github.com/sebble/docker-images/tree/master/letsencrypt-certbot)
-- [nrollr/nginx.conf](https://gist.github.com/nrollr/9a39bb636a820fb97eec2ed85e473d38)
-- [JrCs/docker-letsencrypt-nginx-proxy-companion](https://github.com/JrCs/docker-letsencrypt-nginx-proxy-companion)
+- [nginxinc/docker-nginx](https://github.com/nginxinc/docker-nginx/blob/master/stable/alpine/Dockerfile): The official NGINX Dockerfiles based on [alpine image](https://hub.docker.com/_/alpine/).
+- [sebble/docker-images/letsencrypt-certbot](https://github.com/sebble/docker-images/tree/master/letsencrypt-certbot): Running [certbot](https://certbot.eff.org/docs/using.html) via crontab.
+- [nrollr/nginx.conf](https://gist.github.com/nrollr/9a39bb636a820fb97eec2ed85e473d38): NGINX config for SSL with Let's Encrypt certs.
+- [JrCs/docker-letsencrypt-nginx-proxy-companion](https://github.com/JrCs/docker-letsencrypt-nginx-proxy-companion): LetsEncrypt companion container for nginx-proxy.
 - [tmthrgd/nginx-status-text.conf](https://gist.github.com/tmthrgd/3504859568e1dba9ee80e260f974a708): Nginx status code to message map.
 - [Using NGINX’s X-Accel with Remote URLs](https://www.mediasuite.co.nz/blog/proxying-s3-downloads-nginx/)
 - [How to make an existing caching Nginx proxy use another proxy to bypass a firewall?](https://serverfault.com/questions/583743/how-to-make-an-existing-caching-nginx-proxy-use-another-proxy-to-bypass-a-firewa#683955)
+- [nginx docker container cannot see client ip when using '--iptables=false' option](http://serverfault.com/questions/786389/nginx-docker-container-cannot-see-client-ip-when-using-iptables-false-option#answer-788088)
 
 ## Reference
 
