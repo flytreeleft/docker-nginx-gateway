@@ -6,8 +6,64 @@ A tiny, flexable, configurable Nginx gateway (reverse proxy) Docker image based 
 ## Features
 
 - Enable HTTPS and [OCSP Stapling](https://tools.ietf.org/html/rfc4366#section-3.6) with [Let’s Encrypt](https://letsencrypt.org/).
-- Automatically register [Let’s Encrypt](https://letsencrypt.org/) certificate for new domain and update it via [certbot](https://certbot.eff.org/docs/using.html).
-- Support random custom error pages.
+- Automatically register [Let’s Encrypt](https://letsencrypt.org/) certificate for new domain and update certificates via [certbot](https://certbot.eff.org/docs/using.html).
+- Support to display your custom error pages randomly.
+- Support to load and execute [Lua](https://github.com/openresty/lua-nginx-module) codes.
+- Support to proxy HTTP and TCP stream.
+- Make individual configuration for every domain to serve static files or to proxy the backend servers.
+
+## How to use this image
+
+### Image version
+
+The image version is formated as `<nginx version>-<revision number>`, e.g. `1.11.2-r1`, `1.11.2-r2` etc.
+
+### Build image
+
+Run the following commands in the root directory of this git repository:
+
+```bash
+IMAGE_NAME=flytreeleft/nginx-gateway
+IMAGE_VERSION=1.11.2-r1
+
+docker build --rm -t ${IMAGE_NAME}:${IMAGE_VERSION} .
+```
+
+### Create and run
+
+```bash
+DCR_NAME=nginx-gateway
+DCR_IMAGE=flytreeleft/nginx-gateway
+DCR_IMAGE_VERSION=1.11.2-r1
+
+DEBUG=false
+ULIMIT=655360
+ENABLE_CUSTOM_ERROR_PAGE=true
+CERT_EMAIL=nobody@example.com
+STORAGE=/var/lib/nginx-gateway
+
+ulimit -n ${ULIMIT}
+# http://serverfault.com/questions/786389/nginx-docker-container-cannot-see-client-ip-when-using-iptables-false-option#answer-788088
+docker run -d --name ${DCR_NAME} \
+                --restart always \
+                --network host \
+                --ulimit nofile=${ULIMIT} \
+                -p 443:443 -p 80:80 \
+                -e DEBUG=${DEBUG} \
+                -e CERT_EMAIL=${CERT_EMAIL} \
+                -e ENABLE_CUSTOM_ERROR_PAGE=${ENABLE_CUSTOM_ERROR_PAGE} \
+                -v /usr/share/zoneinfo:/usr/share/zoneinfo:ro \
+                -v /etc/localtime:/etc/localtime:ro \
+                -v ${STORAGE}/letsencrypt:/etc/letsencrypt \
+                -v ${STORAGE}/vhost.d:/etc/nginx/vhost.d \
+                -v ${STORAGE}/stream.d:/etc/nginx/stream.d \
+                -v ${STORAGE}/epage.d:/etc/nginx/epage.d \
+                ${DCR_IMAGE}:${DCR_IMAGE_VERSION}
+```
+
+**Note**:
+- If you want to use your error pages, just set `ENABLE_CUSTOM_ERROR_PAGE` to `false`, and put your configuration (e.g. [config/error-pages/01_default.conf](./config/error-pages/01_default.conf)) and error pages to `${STORAGE}/epage.d`.
+- Mapping `/usr/share/zoneinfo` and `/etc/localtime` from the host machine to make sure the container use the same Time Zone with the host.
 
 ## Thanks
 
