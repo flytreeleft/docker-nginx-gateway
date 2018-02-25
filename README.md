@@ -11,6 +11,7 @@ A tiny, flexable, configurable Nginx Gateway (reverse proxy) Docker image based 
 - Support to load and execute [Lua](https://github.com/openresty/lua-nginx-module) codes.
 - Support to proxy HTTP and TCP stream.
 - Make individual configuration for every domain to serve static files or to proxy the backend servers.
+- Support to create multiple pod replicas in k8s.
 
 ## How to use?
 
