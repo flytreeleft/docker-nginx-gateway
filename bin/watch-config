@@ -33,7 +33,7 @@ is_newer() {
 
     shift
     while [[ -n $1 ]]; do
-        if [[ ! -e "$ref" || "$(find "$1" -newer "$ref")" != "x" ]]; then
+        if [[ ! -e "$ref" || "x$(find "$1" -newer "$ref")" != "x" ]]; then
             result="true"
             break
         fi
