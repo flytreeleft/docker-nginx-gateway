@@ -12,6 +12,7 @@ A tiny, flexable, configurable Nginx Gateway (reverse proxy) Docker image based 
 - Support to proxy HTTP and TCP stream.
 - Make individual configuration for every domain to serve static files or to proxy the backend servers.
 - Support to create multiple pod replicas in k8s.
+- Support access log rotation, e.g. `access_2018-04-26.log`.
 
 ## How to use?
 
@@ -24,24 +25,26 @@ The image version is formated as `<nginx version>-<revision number>`, e.g. `1.11
 Run the following commands in the root directory of this git repository:
 
 ```bash
-IMAGE_NAME=flytreeleft/nginx-gateway
 IMAGE_VERSION=1.11.2-r1
+IMAGE_NAME=flytreeleft/nginx-gateway:${IMAGE_VERSION}
 
-docker build --rm -t ${IMAGE_NAME}:${IMAGE_VERSION} .
+docker build --rm -t ${IMAGE_NAME} .
 ```
 
 ### Create and run
 
 ```bash
-DCR_NAME=nginx-gateway
-DCR_IMAGE=flytreeleft/nginx-gateway
 DCR_IMAGE_VERSION=1.11.2-r1
+
+DCR_NAME=nginx-gateway
+DCR_IMAGE=flytreeleft/nginx-gateway:${DCR_IMAGE_VERSION}
+
+DCR_VOLUME=/var/lib/nginx-gateway
 
 DEBUG=false
 ULIMIT=655360
 ENABLE_CUSTOM_ERROR_PAGE=true
 CERT_EMAIL=nobody@example.com
-STORAGE=/var/lib/nginx-gateway
 
 ulimit -n ${ULIMIT}
 docker run -d --name ${DCR_NAME} \
@@ -54,16 +57,18 @@ docker run -d --name ${DCR_NAME} \
                 -e ENABLE_CUSTOM_ERROR_PAGE=${ENABLE_CUSTOM_ERROR_PAGE} \
                 -v /usr/share/zoneinfo:/usr/share/zoneinfo:ro \
                 -v /etc/localtime:/etc/localtime:ro \
-                -v ${STORAGE}/letsencrypt:/etc/letsencrypt \
-                -v ${STORAGE}/vhost.d:/etc/nginx/vhost.d \
-                -v ${STORAGE}/stream.d:/etc/nginx/stream.d \
-                -v ${STORAGE}/epage.d:/etc/nginx/epage.d \
-                ${DCR_IMAGE}:${DCR_IMAGE_VERSION}
+                -v ${DCR_VOLUME}/logs:/var/log/nginx/sites \
+                -v ${DCR_VOLUME}/letsencrypt:/etc/letsencrypt \
+                -v ${DCR_VOLUME}/vhost.d:/etc/nginx/vhost.d \
+                -v ${DCR_VOLUME}/stream.d:/etc/nginx/stream.d \
+                -v ${DCR_VOLUME}/epage.d:/etc/nginx/epage.d \
+                ${DCR_IMAGE}
 ```
 
 **Note**:
 - If you want to use your error pages, just set `ENABLE_CUSTOM_ERROR_PAGE` to `false`, and put your configuration (e.g. [config/error-pages/01_default.conf](./config/error-pages/01_default.conf)) and error pages to `${STORAGE}/epage.d`.
 - Mapping `/usr/share/zoneinfo` and `/etc/localtime` from the host machine to make sure the container use the same Time Zone with the host.
+- The access and error log will be put in the directory `/var/log/nginx/sites/{domain}`. The access log file will be named as `access_{date}.log` (e.g. `access_2018-04-26.log`), and the error log will be named as `error.log`.
 
 ## Thanks
 
@@ -75,6 +80,8 @@ docker run -d --name ${DCR_NAME} \
 - [Using NGINX’s X-Accel with Remote URLs](https://www.mediasuite.co.nz/blog/proxying-s3-downloads-nginx/)
 - [How to make an existing caching Nginx proxy use another proxy to bypass a firewall?](https://serverfault.com/questions/583743/how-to-make-an-existing-caching-nginx-proxy-use-another-proxy-to-bypass-a-firewa#683955)
 - [nginx docker container cannot see client ip when using '--iptables=false' option](http://serverfault.com/questions/786389/nginx-docker-container-cannot-see-client-ip-when-using-iptables-false-option#answer-788088)
+- [Log rotation directly within Nginx configuration file](https://www.cambus.net/log-rotation-directly-within-nginx-configuration-file/): Using variables in `access_log` directives to rotate access log. Note: embed variables can not be used in `error_log` directives.
+- [Log rotation directly within Nginx configuration file: map instead of if](https://github.com/fcambus/nginx-resources/issues/12): Using `map` directives instead of `if` for rotating access log.
 
 ## Reference
 
@@ -86,3 +93,4 @@ docker run -d --name ${DCR_NAME} \
 - [Nginx proxy_intercept_errors](http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_intercept_errors): Intercept proxy errors and redirected them to nginx for processing with the `error_page` directive.
 - [Nginx proxy_hide_header](http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_hide_header): Hide the headers from the response of a proxied server to a client.
 - [Nginx variables](http://nginx.org/en/docs/varindex.html)
+- [Nginx log_format&access_log](http://nginx.org/en/docs/http/ngx_http_log_module.html)
