@@ -2,10 +2,10 @@
 
 VHOSTS=${VHOSTD}
 CERTS=${CERTBOT}/live
-LOG=/var/log/nginx
+LOG=${NGINX_SITES_LOG}
 # NOTE: All cluster nodes should share challenges
 WEBROOT=${CERTBOT}
-EMAIL=$CERT_EMAIL
+EMAIL=${CERT_EMAIL}
 LOCK=${CERTBOT}/.lck
 
 if [ "x$LOCK" = "x" ]; then
@@ -44,9 +44,10 @@ for domain in `echo $DOMAINS | sed "s/\s\+/\n/g"`; do
         if [[ $? = "0" ]]; then
             subdir=${VHOSTS}/${domain}
             conf=${CERTS}/${domain}
-            log=${LOG}
+            log=${LOG}/${domain}
 
             mkdir -p ${subdir} ${log}
+            chown -R nginx ${log}
             # https://github.com/certbot/certbot/issues/1813#issuecomment-163222670
             # https://wiki.mozilla.org/Security/TLS_Configurations
             # https://gist.github.com/nrollr/9a39bb636a820fb97eec2ed85e473d38
@@ -57,8 +58,8 @@ ssl_trusted_certificate ${conf}/chain.pem;
 ssl_certificate ${conf}/fullchain.pem;
 ssl_certificate_key ${conf}/privkey.pem;" > ${subdir}/01_ssl.conf
             echo "# Error and access log
-access_log ${log}/${domain}.access.log main;
-error_log ${log}/${domain}.error.log debug;" > ${subdir}/02_log.conf
+error_log ${log}/error.log debug;
+access_log ${log}/access\$logdate.log main;" > ${subdir}/02_log.conf
             echo "# Custom error page
 include /etc/nginx/epage.d/*.conf;" > ${subdir}/03_epage.conf
         fi

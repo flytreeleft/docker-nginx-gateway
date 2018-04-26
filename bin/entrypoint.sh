@@ -31,4 +31,6 @@ if [[ "${DEBUG}" = "true" ]]; then
     NGINX=nginx-debug
 fi
 
+chown -R nginx /var/log/nginx
+
 eval "${NGINX} -g \"daemon off;\""

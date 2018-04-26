@@ -1,17 +1,21 @@
 #!/bin/bash
 
-DCR_NAME=nginx-gateway
-DCR_IMAGE=flytreeleft/nginx-gateway
 DCR_IMAGE_VERSION=1.11.2-r1
+
+DCR_NAME=nginx-gateway
+DCR_IMAGE=flytreeleft/nginx-gateway:${DCR_IMAGE_VERSION}
+
+DCR_VOLUME=/var/lib/nginx-gateway
 
 DEBUG=false
 ULIMIT=655360
 ENABLE_CUSTOM_ERROR_PAGE=true
 CERT_EMAIL=nobody@example.com
-STORAGE=/var/lib/nginx-gateway
 
 #ulimit -n ${ULIMIT}
 docker rm -f ${DCR_NAME}
+rm -f "${DCR_VOLUME}/letsencrypt/.lck"
+
 # http://serverfault.com/questions/786389/nginx-docker-container-cannot-see-client-ip-when-using-iptables-false-option#answer-788088
 docker run -d --name ${DCR_NAME} \
                 --restart always \
@@ -23,8 +27,9 @@ docker run -d --name ${DCR_NAME} \
                 -e ENABLE_CUSTOM_ERROR_PAGE=${ENABLE_CUSTOM_ERROR_PAGE} \
                 -v /usr/share/zoneinfo:/usr/share/zoneinfo:ro \
                 -v /etc/localtime:/etc/localtime:ro \
-                -v ${STORAGE}/letsencrypt:/etc/letsencrypt \
-                -v ${STORAGE}/vhost.d:/etc/nginx/vhost.d \
-                -v ${STORAGE}/stream.d:/etc/nginx/stream.d \
-                -v ${STORAGE}/epage.d:/etc/nginx/epage.d \
-                ${DCR_IMAGE}:${DCR_IMAGE_VERSION}
+                -v ${DCR_VOLUME}/logs:/var/log/nginx/sites \
+                -v ${DCR_VOLUME}/letsencrypt:/etc/letsencrypt \
+                -v ${DCR_VOLUME}/vhost.d:/etc/nginx/vhost.d \
+                -v ${DCR_VOLUME}/stream.d:/etc/nginx/stream.d \
+                -v ${DCR_VOLUME}/epage.d:/etc/nginx/epage.d \
+                ${DCR_IMAGE}

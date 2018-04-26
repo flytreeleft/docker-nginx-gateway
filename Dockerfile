@@ -46,7 +46,6 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
         --with-http_auth_request_module \
         --with-http_xslt_module=dynamic \
         --with-http_image_filter_module=dynamic \
-        --with-http_geoip_module=dynamic \
         --with-threads \
         --with-stream \
         --with-stream_ssl_module \
@@ -71,7 +70,6 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
         gnupg \
         libxslt-dev \
         gd-dev \
-        geoip-dev \
     && curl -fSL http://luajit.org/download/LuaJIT-$LUA_JIT_VERSION.tar.gz  -o lua-jit.tar.gz \
     && curl -fSL https://github.com/luarocks/luarocks/archive/v$LUA_ROCKS_VERSION.tar.gz  -o lua-rocks.tar.gz \
     && curl -fSL https://github.com/mpx/lua-cjson/archive/$LUA_CJSON_VERSION.tar.gz  -o lua-cjson.tar.gz \
@@ -139,14 +137,14 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && mv objs/nginx objs/nginx-debug \
     && mv objs/ngx_http_xslt_filter_module.so objs/ngx_http_xslt_filter_module-debug.so \
     && mv objs/ngx_http_image_filter_module.so objs/ngx_http_image_filter_module-debug.so \
-    && mv objs/ngx_http_geoip_module.so objs/ngx_http_geoip_module-debug.so \
     && ./configure $CONFIG \
             --with-ld-opt="-Wl,-rpath,$LUAJIT_LIB" \
             --add-module=/usr/src/ngx_devel_kit-$NDK_VERSION \
             --add-module=/usr/src/lua-nginx-module-$NGX_LUA_VERSION \
     && make -j$(getconf _NPROCESSORS_ONLN) \
     && make install \
-    && rm -rf /etc/nginx/html/ \
+    # Note: Keep the '/etc/nginx/html' to prevent 'testing "/etc/nginx/html" existence failed' error
+    #&& rm -rf /etc/nginx/html/
     && mkdir /etc/nginx/conf.d/ \
     && mkdir -p /usr/share/nginx/html/ \
     && install -m644 html/index.html /usr/share/nginx/html/ \
@@ -154,7 +152,6 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && install -m755 objs/nginx-debug /usr/sbin/nginx-debug \
     && install -m755 objs/ngx_http_xslt_filter_module-debug.so /usr/lib/nginx/modules/ngx_http_xslt_filter_module-debug.so \
     && install -m755 objs/ngx_http_image_filter_module-debug.so /usr/lib/nginx/modules/ngx_http_image_filter_module-debug.so \
-    && install -m755 objs/ngx_http_geoip_module-debug.so /usr/lib/nginx/modules/ngx_http_geoip_module-debug.so \
     && ln -s ../../usr/lib/nginx/modules /etc/nginx/modules \
     && strip /usr/sbin/nginx* \
     && strip /usr/lib/nginx/modules/*.so \
@@ -182,7 +179,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && mv /tmp/envsubst /usr/local/bin/ \
     \
     # forward request and error logs to docker log collector
-    && ln -sf /dev/stdout /var/log/nginx/access.log \
+    #&& ln -sf /dev/stdout /var/log/nginx/access.log
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
 
@@ -195,6 +192,8 @@ ENV VHOSTD=/etc/nginx/vhost.d
 ENV STREAMD=/etc/nginx/stream.d
 ENV EPAGED=/etc/nginx/epage.d
 ENV CERTBOT=/etc/letsencrypt
+ENV NGINX_LOG=/var/log/nginx
+ENV NGINX_SITES_LOG=/var/log/nginx/sites
 
 RUN apk add --update openssl certbot ca-certificates
 # Fix issue: https://github.com/Yelp/dumb-init/issues/73
@@ -202,12 +201,13 @@ RUN update-ca-certificates
 RUN mkdir -p /etc/nginx/ssl && openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
 RUN apk del openssl && rm -rf /var/cache/apk/*
 
-RUN mkdir -p /var/log/cron /var/log/letsencrypt
+RUN mkdir -p /var/log/cron /var/log/letsencrypt ${NGINX_LOG} ${NGINX_SITES_LOG}
 #RUN mkdir -p /var/www/html && chown -R nginx:nginx /var/www/html
 RUN rm -f /etc/nginx/conf.d/default.conf
 
 ADD config/nginx.conf /etc/nginx/nginx.conf
 ADD config/00_vars.conf /etc/nginx/conf.d/00_vars.conf
+ADD config/00_log.conf /etc/nginx/conf.d/00_log.conf
 ADD config/01_ssl.conf /etc/nginx/conf.d/01_ssl.conf
 ADD config/02_proxy.conf /etc/nginx/conf.d/02_proxy.conf
 ADD config/10_default.conf /etc/nginx/conf.d/10_default.conf
