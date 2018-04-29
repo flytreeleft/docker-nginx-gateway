@@ -76,7 +76,7 @@ docker run -d --name ${DCR_NAME} \
 There are some examples in [examples/vhost.d](./examples/vhost.d) for different needs.
 
 In [config/10_default.conf](./config/10_default.conf), all HTTP requests will be redirected to HTTPS,
-so you just need to listen on `443` and configure for you HTTPS sites which is like the following codes:
+so you just need to listen on `443` and configure for you HTTPS site which is like the following codes:
 ```nginx
 server {
     listen 443 ssl;
@@ -87,7 +87,7 @@ server {
     # Note: The additional configuration files (for ssl, log, etc.) which are generated automatically
     # will be put into the fixed location as '/etc/nginx/vhost.d/<your-domain>',
     # so do not change it.
-    include /etc/nginx/vhost.d/<your-site-domain>/*.conf;
+    include /etc/nginx/vhost.d/<your-domain>/*.conf;
 
     location / {
         # Avoid to get address resolve error when starting
@@ -97,8 +97,8 @@ server {
 }
 ```
 
-Also, you can put the global and default settings in a file (e.g. [vhost.d/00_default.conf](./examples/vhost.d/00_default.conf)),
-just make sure it will be loaded before the site configuration files. Here are some usefull configurations:
+Also, you can put the global and default settings in one file (e.g. [vhost.d/00_default.conf](./examples/vhost.d/00_default.conf)),
+just make sure it will be loaded before the other site configuration files. Here are some usefull configurations:
 ```nginx
 resolver 8.8.8.8 valid=300s;
 resolver_timeout 5s;
@@ -115,7 +115,7 @@ proxy_redirect     / /;
 
 For other needs, see details in:
 - [Enable upload big files to your site](./examples/vhost.d/git.example.com.conf)
-- [The Nexus3 repository for Docker images and Maven, NPM, etc. packages](./examples/vhost.d/repo.example.com.conf)
+- [The Nexus3 repository sites for Docker images and the library packages of Maven, NPM, etc.](./examples/vhost.d/repo.example.com.conf)
 - [Proxy the static files behind the firewall](./examples/vhost.d/static.example.com.conf)
 - [Enable the HTTP Basic Authentication or OpenID](./examples/vhost.d/wiki.example.com.conf)
 - [Proxy the TCP streams](./examples/stream.d/mysql.conf)
