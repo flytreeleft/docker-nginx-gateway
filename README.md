@@ -13,6 +13,7 @@ A tiny, flexable, configurable Nginx Gateway (reverse proxy) Docker image based 
 - Make individual configuration for every domain to serve static files or to proxy the backend servers.
 - Support to create multiple pod replicas in k8s.
 - Support access log rotation, e.g. `access_2018-04-26.log`.
+- Support authentication with OpenID and to add client IPs to the non-auth whitelist.
 
 ## How to use?
 
@@ -69,6 +70,55 @@ docker run -d --name ${DCR_NAME} \
 - If you want to use your error pages, just set `ENABLE_CUSTOM_ERROR_PAGE` to `false`, and put your configuration (e.g. [config/error-pages/01_default.conf](./config/error-pages/01_default.conf)) and error pages to `${STORAGE}/epage.d`.
 - Mapping `/usr/share/zoneinfo` and `/etc/localtime` from the host machine to make sure the container use the same Time Zone with the host.
 - The access and error log will be put in the directory `/var/log/nginx/sites/{domain}`. The access log file will be named as `access_{date}.log` (e.g. `access_2018-04-26.log`), and the error log will be named as `error.log`.
+
+## How to configure your site?
+
+There are some examples in [examples/vhost.d](./examples/vhost.d) for different needs.
+
+In [config/10_default.conf](./config/10_default.conf), all HTTP requests will be redirected to HTTPS,
+so you just need to listen on `443` and configure for you HTTPS sites which is like the following codes:
+```nginx
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name <your-domain>;
+
+    # Note: The additional configuration files (for ssl, log, etc.) which are generated automatically
+    # will be put into the fixed location as '/etc/nginx/vhost.d/<your-domain>',
+    # so do not change it.
+    include /etc/nginx/vhost.d/<your-site-domain>/*.conf;
+
+    location / {
+        # Avoid to get address resolve error when starting
+        set $target http://<proxy to backend>:80;
+        proxy_pass  $target;
+    }
+}
+```
+
+Also, you can put the global and default settings in a file (e.g. [vhost.d/00_default.conf](./examples/vhost.d/00_default.conf)),
+just make sure it will be loaded before the site configuration files. Here are some usefull configurations:
+```nginx
+resolver 8.8.8.8 valid=300s;
+resolver_timeout 5s;
+
+# Websocket support
+proxy_http_version 1.1;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+
+# Force to change the redirect url's scheme to https
+proxy_redirect   http:// $scheme://;
+proxy_redirect     / /;
+```
+
+For other needs, see details in:
+- [Enable upload big files to your site](./examples/vhost.d/git.example.com.conf)
+- [The Nexus3 repository for Docker images and Maven, NPM, etc. packages](./examples/vhost.d/repo.example.com.conf)
+- [Proxy the static files behind the firewall](./examples/vhost.d/static.example.com.conf)
+- [Enable the HTTP Basic Authentication or OpenID](./examples/vhost.d/wiki.example.com.conf)
+- [Proxy the TCP streams](./examples/stream.d/mysql.conf)
 
 ## Thanks
 
