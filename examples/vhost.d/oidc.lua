@@ -1,5 +1,13 @@
 -- https://github.com/pingidentity/lua-resty-openidc#sample-configuration-for-google-signin
 
+if ngx.var.oidc_ip_whitelist and ngx.var.remote_addr then
+    for ip in string.gmatch(ngx.var.oidc_ip_whitelist, '([^, ]+)') do
+        if ip == ngx.var.remote_addr then
+            return
+        end
+    end
+end
+
 local opts = {
     -- Redirect uri which doesn't exist and cannot be '/'
     redirect_uri_path = "/redirect_uri",
