@@ -132,7 +132,7 @@ For other needs, see details in:
 - [nginx docker container cannot see client ip when using '--iptables=false' option](http://serverfault.com/questions/786389/nginx-docker-container-cannot-see-client-ip-when-using-iptables-false-option#answer-788088)
 - [Log rotation directly within Nginx configuration file](https://www.cambus.net/log-rotation-directly-within-nginx-configuration-file/): Using variables in `access_log` directives to rotate access log. Note: embed variables can not be used in `error_log` directives.
 - [Log rotation directly within Nginx configuration file: map instead of if](https://github.com/fcambus/nginx-resources/issues/12): Using `map` directives instead of `if` for rotating access log.
-- [zmartzone/lua-resty-openidc](https://github.com/zmartzone/lua-resty-openidc)
+- [zmartzone/lua-resty-openidc](https://github.com/zmartzone/lua-resty-openidc): Give a way to enable OpenID authentication for Nginx.
 
 ## Reference
 
