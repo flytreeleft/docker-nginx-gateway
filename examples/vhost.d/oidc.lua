@@ -11,8 +11,7 @@ end
 local opts = {
     -- Redirect uri which doesn't exist and cannot be '/'
     redirect_uri_path = "/redirect_uri",
-    -- TODO Change the discovery URL as yours.
-    discovery = "https://sso.example.com/auth/realms/"..ngx.var.oidc_realm.."/.well-known/openid-configuration",
+    discovery = "https://sso.dhcc-itsm.com/auth/realms/"..ngx.var.oidc_realm.."/.well-known/openid-configuration",
     client_id = ngx.var.oidc_client_id,
     --client_secret = ngx.var.oidc_client_secret,
     ssl_verify = "no",
@@ -23,15 +22,24 @@ local opts = {
     --access_token_expires_in = 3600,
     --force_reauthorize = false
 }
-
 -- Set a fixed and unique session secret for every domain to prevent infinite redirect loop
 --   https://github.com/pingidentity/lua-resty-openidc/issues/32#issuecomment-273900768
 --   https://github.com/openresty/lua-nginx-module#set_by_lua
 local session_opts = {
     secret = ngx.encode_base64(ngx.var.server_name):sub(0, 32)
 }
-local res, err = require("resty.openidc").authenticate(opts, nil, nil, session_opts)
 
+-- Change the redirect uri to the root uri to prevent to get 500 error
+local request_uri_args = ngx.req.get_uri_args()
+if ngx.var.request_uri == opts.redirect_uri_path and (not request_uri_args.code or not request_uri_args.state) then
+    -- https://github.com/openresty/lua-nginx-module#ngxreqset_uri
+    -- Note: 1. 'jump=true' isn't allowed in 'access_by_lua' directive
+    --       2. 'ngx.req.set_uri' will not change the value of 'ngx.var.request_uri'
+    --ngx.req.set_uri("/", false)
+    return ngx.redirect("/")
+end
+
+local res, err = require("resty.openidc").authenticate(opts, nil, nil, session_opts)
 if err then
     ngx.status = 500
     ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
