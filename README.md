@@ -13,7 +13,7 @@ A tiny, flexable, configurable Nginx Gateway (reverse proxy) Docker image based 
 - Make individual configuration for every domain to serve static files or to proxy the backend servers.
 - Support to create multiple pod replicas in k8s.
 - Support access log rotation, e.g. `access_2018-04-26.log`.
-- Support authentication with OpenID and to add client IPs to the non-auth whitelist.
+- Support authentication with OpenID (via [lua-resty-openidc](https://github.com/zmartzone/lua-resty-openidc)) and to add client IPs to the non-auth whitelist.
 
 ## How to use?
 
@@ -132,6 +132,7 @@ For other needs, see details in:
 - [nginx docker container cannot see client ip when using '--iptables=false' option](http://serverfault.com/questions/786389/nginx-docker-container-cannot-see-client-ip-when-using-iptables-false-option#answer-788088)
 - [Log rotation directly within Nginx configuration file](https://www.cambus.net/log-rotation-directly-within-nginx-configuration-file/): Using variables in `access_log` directives to rotate access log. Note: embed variables can not be used in `error_log` directives.
 - [Log rotation directly within Nginx configuration file: map instead of if](https://github.com/fcambus/nginx-resources/issues/12): Using `map` directives instead of `if` for rotating access log.
+- [zmartzone/lua-resty-openidc](https://github.com/zmartzone/lua-resty-openidc)
 
 ## Reference
 
