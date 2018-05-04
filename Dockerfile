@@ -2,6 +2,8 @@
 FROM alpine:3.5
 MAINTAINER flytreeleft <flytreeleft@126.com>
 
+ARG enable_geoip=false
+
 ENV LUA_JIT_VERSION 2.0.5
 ENV LUA_ROCKS_VERSION 2.4.2
 ENV LUA_CJSON_VERSION 2.1.0
@@ -12,6 +14,7 @@ ENV LUA_RESTY_SESSION_VERSION 2.17
 ENV NGINX_VERSION 1.11.2
 ENV NDK_VERSION 0.3.0
 ENV NGX_LUA_VERSION 0.10.8
+ENV NGX_GEOIP2_VERSION 2.0
 
 RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && CONFIG="\
@@ -70,6 +73,8 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
         gnupg \
         libxslt-dev \
         gd-dev \
+        libmaxminddb \
+        libmaxminddb-dev \
     && curl -fSL http://luajit.org/download/LuaJIT-$LUA_JIT_VERSION.tar.gz  -o lua-jit.tar.gz \
     && curl -fSL https://github.com/luarocks/luarocks/archive/v$LUA_ROCKS_VERSION.tar.gz  -o lua-rocks.tar.gz \
     && curl -fSL https://github.com/mpx/lua-cjson/archive/$LUA_CJSON_VERSION.tar.gz  -o lua-cjson.tar.gz \
@@ -79,6 +84,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && curl -fSL http://nginx.org/download/nginx-$NGINX_VERSION.tar.gz.asc  -o nginx.tar.gz.asc \
     && curl -fSL https://github.com/simpl/ngx_devel_kit/archive/v$NDK_VERSION.tar.gz  -o ngx_devel_kit.tar.gz \
     && curl -fSL https://github.com/openresty/lua-nginx-module/archive/v$NGX_LUA_VERSION.tar.gz  -o lua-nginx-module.tar.gz \
+    && curl -fSL https://github.com/leev/ngx_http_geoip2_module/archive/$NGX_GEOIP2_VERSION.tar.gz  -o ngx_http_geoip2_module.tar.gz \
     && export GNUPGHOME="$(mktemp -d)" \
     && found=''; \
     for server in \
@@ -102,6 +108,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && tar -zxC /usr/src -f nginx.tar.gz \
     && tar -zxC /usr/src -f ngx_devel_kit.tar.gz \
     && tar -zxC /usr/src -f lua-nginx-module.tar.gz \
+    && tar -zxC /usr/src -f ngx_http_geoip2_module.tar.gz \
     && rm -f *.tar.gz \
     && cd /usr/src/LuaJIT-$LUA_JIT_VERSION \
     && make \
@@ -133,6 +140,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
             --with-ld-opt="-Wl,-rpath,$LUAJIT_LIB" \
             --add-module=/usr/src/ngx_devel_kit-$NDK_VERSION \
             --add-module=/usr/src/lua-nginx-module-$NGX_LUA_VERSION \
+            --add-module=/usr/src/ngx_http_geoip2_module-$NGX_GEOIP2_VERSION \
     && make -j$(getconf _NPROCESSORS_ONLN) \
     && mv objs/nginx objs/nginx-debug \
     && mv objs/ngx_http_xslt_filter_module.so objs/ngx_http_xslt_filter_module-debug.so \
@@ -141,6 +149,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
             --with-ld-opt="-Wl,-rpath,$LUAJIT_LIB" \
             --add-module=/usr/src/ngx_devel_kit-$NDK_VERSION \
             --add-module=/usr/src/lua-nginx-module-$NGX_LUA_VERSION \
+            --add-module=/usr/src/ngx_http_geoip2_module-$NGX_GEOIP2_VERSION \
     && make -j$(getconf _NPROCESSORS_ONLN) \
     && make install \
     # Note: Keep the '/etc/nginx/html' to prevent 'testing "/etc/nginx/html" existence failed' error
@@ -182,6 +191,25 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     #&& ln -sf /dev/stdout /var/log/nginx/access.log
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
+# https://github.com/leev/ngx_http_geoip2_module
+# http://www.treselle.com/blog/nginx-with-geoip2-maxmind-database-to-fetch-user-geo-location-data/
+# https://dev.maxmind.com/geoip/geoip2/geolite2/
+RUN [[ "${enable_geoip}" = "true" ]] \
+    && mkdir -p /etc/nginx/geoip2 /tmp/geoip2 \
+    && cd /tmp/geoip2 \
+    && wget http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz \
+            http://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.tar.gz \
+    && tar -zxf GeoLite2-City.tar.gz \
+    && tar -zxf GeoLite2-Country.tar.gz \
+    && find . -name "*.mmdb" -type f -exec mv {} /etc/nginx/geoip2 \; \
+    && cd - && rm -rf /tmp/geoip2 \
+    ; echo ""
+
+# https://github.com/dauer/geohash/blob/master/lua/README.md
+RUN [[ "${enable_geoip}" = "true" ]] \
+    && luarocks install https://github.com/dauer/geohash/raw/master/lua/geohash-0.9-1.rockspec \
+    ; echo ""
+
 
 ENV DEBUG=false
 ENV DOMAIN=
@@ -210,6 +238,8 @@ ADD config/00_vars.conf /etc/nginx/conf.d/00_vars.conf
 ADD config/00_log.conf /etc/nginx/conf.d/00_log.conf
 ADD config/01_ssl.conf /etc/nginx/conf.d/01_ssl.conf
 ADD config/02_proxy.conf /etc/nginx/conf.d/02_proxy.conf
+ADD config/03_geoip2.conf /etc/nginx/conf.d/03_geoip2.conf
+ADD config/00_log_with_geoip.conf /etc/nginx/conf.d/00_log_with_geoip.conf
 ADD config/10_default.conf /etc/nginx/conf.d/10_default.conf
 
 # NOTE: The other crontab file will not be scaned
@@ -222,6 +252,9 @@ ADD bin/entrypoint.sh /entrypoint.sh
 
 ADD config/error-pages ${DEFAULT_ERROR_PAGES}
 
+RUN [[ "${enable_geoip}" != "true" ]] \
+    && rm -f /etc/nginx/conf.d/*geoip* \
+    ; echo ""
 RUN mkdir -p ${VHOSTD} ${STREAMD} ${CERTBOT} ${EPAGED}
 RUN chmod +x /usr/bin/build-certs /usr/bin/update-certs /usr/bin/watch-config /entrypoint.sh
 
