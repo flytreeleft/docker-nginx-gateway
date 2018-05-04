@@ -19,7 +19,7 @@ A tiny, flexable, configurable Nginx Gateway (reverse proxy) Docker image based 
 
 ### Image version
 
-The image version is formated as `<nginx version>-<revision number>`, e.g. `1.11.2-r1`, `1.11.2-r2` etc.
+The image version is formated as `<nginx version>-r<revision number>[p<patch number>]`, e.g. `1.11.2-r1`, `1.11.2-r1p1`, `1.11.2-r2` etc.
 
 ### Build image
 
