@@ -14,6 +14,7 @@ A tiny, flexable, configurable Nginx Gateway (reverse proxy) Docker image based 
 - Support to create multiple pod replicas in k8s.
 - Support access log rotation, e.g. `access_2018-04-26.log`.
 - Support authentication with OpenID (via [lua-resty-openidc](https://github.com/zmartzone/lua-resty-openidc)) and to add client IPs to the non-auth whitelist.
+- Enable building image with [GeoIp2](https://github.com/leev/ngx_http_geoip2_module) or not.
 
 ## How to use?
 
@@ -26,16 +27,25 @@ The image version is formated as `<nginx version>-r<revision number>[p<patch num
 Run the following commands in the root directory of this git repository:
 
 ```bash
-IMAGE_VERSION=1.11.2-r1
+IMAGE_VERSION=1.11.2-r2
 IMAGE_NAME=flytreeleft/nginx-gateway:${IMAGE_VERSION}
 
 docker build --rm -t ${IMAGE_NAME} .
 ```
 
+If you want to enable [GeoIp2](https://github.com/leev/ngx_http_geoip2_module), just set the build argument `enable_geoip` to `true`:
+
+```bash
+IMAGE_VERSION=1.11.2-r2
+IMAGE_NAME=flytreeleft/nginx-gateway-with-geoip:${IMAGE_VERSION}
+
+docker build --rm --build-arg enable_geoip=true -t ${IMAGE_NAME} .
+```
+
 ### Create and run
 
 ```bash
-DCR_IMAGE_VERSION=1.11.2-r1
+DCR_IMAGE_VERSION=1.11.2-r2
 
 DCR_NAME=nginx-gateway
 DCR_IMAGE=flytreeleft/nginx-gateway:${DCR_IMAGE_VERSION}
