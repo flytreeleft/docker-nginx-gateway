@@ -2,7 +2,6 @@
 FROM alpine:3.5
 MAINTAINER flytreeleft <flytreeleft@126.com>
 
-ARG enable_geoip=false
 
 ENV LUA_JIT_VERSION 2.0.5
 ENV LUA_ROCKS_VERSION 2.4.2
@@ -191,6 +190,27 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     #&& ln -sf /dev/stdout /var/log/nginx/access.log
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
+
+# Fix issue "wget: can't execute 'ssl_helper'": https://github.com/Yelp/dumb-init/issues/73
+RUN apk add --update --no-cache openssl certbot ca-certificates \
+    && update-ca-certificates
+# https://github.com/docker-library/python/blob/master/3.7/alpine3.7/Dockerfile
+RUN set -ex; \
+	wget -O get-pip.py 'https://bootstrap.pypa.io/get-pip.py'; \
+	python get-pip.py \
+		--no-cache-dir \
+	; \
+	pip --version; \
+	find /usr/local -depth \
+		\( \
+			\( -type d -a \( -name test -o -name tests \) \) \
+			-o \
+			\( -type f -a \( -name '*.pyc' -o -name '*.pyo' \) \) \
+		\) -exec rm -rf '{}' +; \
+	rm -f get-pip.py
+
+
+ARG enable_geoip=false
 # https://github.com/leev/ngx_http_geoip2_module
 # http://www.treselle.com/blog/nginx-with-geoip2-maxmind-database-to-fetch-user-geo-location-data/
 # https://dev.maxmind.com/geoip/geoip2/geolite2/
@@ -204,11 +224,15 @@ RUN [[ "${enable_geoip}" = "true" ]] \
     && find . -name "*.mmdb" -type f -exec mv {} /etc/nginx/geoip2 \; \
     && cd - && rm -rf /tmp/geoip2 \
     ; echo ""
-
 # https://github.com/dauer/geohash/blob/master/lua/README.md
 RUN [[ "${enable_geoip}" = "true" ]] \
     && luarocks install https://github.com/dauer/geohash/raw/master/lua/geohash-0.9-1.rockspec \
     ; echo ""
+
+
+ARG enable_gixy=true
+# https://github.com/yandex/gixy
+RUN [[ "${enable_gixy}" = "true" ]] && pip install gixy
 
 
 ENV DEBUG=false
@@ -223,11 +247,8 @@ ENV CERTBOT=/etc/letsencrypt
 ENV NGINX_LOG=/var/log/nginx
 ENV NGINX_SITES_LOG=/var/log/nginx/sites
 
-RUN apk add --update openssl certbot ca-certificates
-# Fix issue: https://github.com/Yelp/dumb-init/issues/73
-RUN update-ca-certificates
 RUN mkdir -p /etc/nginx/ssl && openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
-RUN apk del openssl && rm -rf /var/cache/apk/*
+RUN rm -rf /root/.cache
 
 RUN mkdir -p /var/log/cron /var/log/letsencrypt ${NGINX_LOG} ${NGINX_SITES_LOG}
 #RUN mkdir -p /var/www/html && chown -R nginx:nginx /var/www/html

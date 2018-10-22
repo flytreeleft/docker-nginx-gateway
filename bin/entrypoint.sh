@@ -24,6 +24,12 @@ esac
 
 LOG=/var/log/letsencrypt/build.log
 CMD="/usr/bin/build-certs >> ${LOG} 2>&1; /usr/sbin/nginx -s reload"
+# https://github.com/yandex/gixy#usage
+if [[ "${DISABLE_GIXY}" != "true" && -e /usr/bin/gixy ]]; then
+    /usr/bin/gixy /etc/nginx/nginx.conf /etc/nginx/conf.d/*.conf
+
+    CMD="/usr/bin/gixy ${EPAGED}/*.conf ${STREAMD}/*.conf ${VHOSTD}/*.conf; ${CMD}"
+fi
 /usr/bin/watch-config -- "${CMD}" &
 
 NGINX=nginx
