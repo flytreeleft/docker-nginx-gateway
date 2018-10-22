@@ -15,6 +15,7 @@ A tiny, flexable, configurable Nginx Gateway (reverse proxy) Docker image based 
 - Support access log rotation, e.g. `access_2018-04-26.log`.
 - Support authentication with OpenID (via [lua-resty-openidc](https://github.com/zmartzone/lua-resty-openidc)) and to add client IPs to the non-auth whitelist.
 - Enable building image with [GeoIp2](https://github.com/leev/ngx_http_geoip2_module) or not.
+- Integrated with [Gixy](https://github.com/yandex/gixy) to analyze Nginx configuration to prevent security misconfiguration and automate flaw detection.
 
 ## How to use?
 
@@ -66,6 +67,7 @@ docker run -d --name ${DCR_NAME} \
                 -e DEBUG=${DEBUG} \
                 -e CERT_EMAIL=${CERT_EMAIL} \
                 -e ENABLE_CUSTOM_ERROR_PAGE=${ENABLE_CUSTOM_ERROR_PAGE} \
+                -e DISABLE_GIXY=false \
                 -v /usr/share/zoneinfo:/usr/share/zoneinfo:ro \
                 -v /etc/localtime:/etc/localtime:ro \
                 -v ${DCR_VOLUME}/logs:/var/log/nginx/sites \
@@ -80,6 +82,7 @@ docker run -d --name ${DCR_NAME} \
 - If you want to use your error pages, just set `ENABLE_CUSTOM_ERROR_PAGE` to `false`, and put your configuration (e.g. [config/error-pages/01_default.conf](./config/error-pages/01_default.conf)) and error pages to `${STORAGE}/epage.d`.
 - Mapping `/usr/share/zoneinfo` and `/etc/localtime` from the host machine to make sure the container use the same Time Zone with the host.
 - The access and error log will be put in the directory `/var/log/nginx/sites/{domain}`. The access log file will be named as `access_{date}.log` (e.g. `access_2018-04-26.log`), and the error log will be named as `error.log`.
+- Set `DISABLE_GIXY` to `true` if you don't want to run Gixy to check Nginx configuration files when they are changed.
 
 ## How to configure your site?
 
@@ -143,6 +146,7 @@ For other needs, see details in:
 - [Log rotation directly within Nginx configuration file](https://www.cambus.net/log-rotation-directly-within-nginx-configuration-file/): Using variables in `access_log` directives to rotate access log. Note: embed variables can not be used in `error_log` directives.
 - [Log rotation directly within Nginx configuration file: map instead of if](https://github.com/fcambus/nginx-resources/issues/12): Using `map` directives instead of `if` for rotating access log.
 - [zmartzone/lua-resty-openidc](https://github.com/zmartzone/lua-resty-openidc): Give a way to enable OpenID authentication for Nginx.
+- [Gixy](https://github.com/yandex/gixy): A tool to analyze Nginx configuration to prevent security misconfiguration.
 
 ## Reference
 
