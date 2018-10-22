@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DCR_IMAGE_VERSION=1.11.2-r1
+DCR_IMAGE_VERSION=1.11.2-r2
 
 DCR_NAME=nginx-gateway
 DCR_IMAGE=flytreeleft/nginx-gateway:${DCR_IMAGE_VERSION}
@@ -25,6 +25,7 @@ docker run -d --name ${DCR_NAME} \
                 -e DEBUG=${DEBUG} \
                 -e CERT_EMAIL=${CERT_EMAIL} \
                 -e ENABLE_CUSTOM_ERROR_PAGE=${ENABLE_CUSTOM_ERROR_PAGE} \
+                -e DISABLE_GIXY=false \
                 -v /usr/share/zoneinfo:/usr/share/zoneinfo:ro \
                 -v /etc/localtime:/etc/localtime:ro \
                 -v ${DCR_VOLUME}/logs:/var/log/nginx/sites \
