@@ -82,7 +82,7 @@ docker run -d --name ${DCR_NAME} \
 - If you want to use your error pages, just set `ENABLE_CUSTOM_ERROR_PAGE` to `false`, and put your configuration (e.g. [config/error-pages/01_default.conf](./config/error-pages/01_default.conf)) and error pages to `${STORAGE}/epage.d`.
 - Mapping `/usr/share/zoneinfo` and `/etc/localtime` from the host machine to make sure the container use the same Time Zone with the host.
 - The access and error log will be put in the directory `/var/log/nginx/sites/{domain}`. The access log file will be named as `access_{date}.log` (e.g. `access_2018-04-26.log`), and the error log will be named as `error.log`.
-- Set `DISABLE_GIXY` to `true` if you don't want to run Gixy to check Nginx configuration files when they are changed.
+- Set `DISABLE_GIXY` to `true` if you don't want to run Gixy to check Nginx configuration files when they are changed. Otherwise, you can run `docker logs --tail 100 ${DCR_NAME}` to check the detection results.
 
 ## How to configure your site?
 
