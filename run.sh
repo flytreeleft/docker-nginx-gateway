@@ -1,9 +1,11 @@
 #!/bin/bash
 
-DCR_IMAGE_VERSION=1.11.2-r3
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+. "${DIR}/config.sh"
+
 
 DCR_NAME=nginx-gateway
-DCR_IMAGE=flytreeleft/nginx-gateway:${DCR_IMAGE_VERSION}
+DCR_IMAGE="${IMAGE_NAME}:${IMAGE_VERSION}"
 
 DCR_VOLUME=/var/lib/nginx-gateway
 
@@ -25,6 +27,7 @@ docker run -d --name ${DCR_NAME} \
                 -e DEBUG=${DEBUG} \
                 -e CERT_EMAIL=${CERT_EMAIL} \
                 -e ENABLE_CUSTOM_ERROR_PAGE=${ENABLE_CUSTOM_ERROR_PAGE} \
+                -e DISABLE_CERTBOT=false \
                 -e DISABLE_GIXY=false \
                 -v /usr/share/zoneinfo:/usr/share/zoneinfo:ro \
                 -v /etc/localtime:/etc/localtime:ro \
