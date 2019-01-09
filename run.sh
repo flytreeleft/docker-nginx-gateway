@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DCR_IMAGE_VERSION=1.11.2-r2
+DCR_IMAGE_VERSION=1.11.2-r3
 
 DCR_NAME=nginx-gateway
 DCR_IMAGE=flytreeleft/nginx-gateway:${DCR_IMAGE_VERSION}

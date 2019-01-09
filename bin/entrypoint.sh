@@ -23,7 +23,10 @@ case ${ENABLE_CUSTOM_ERROR_PAGE} in
 esac
 
 LOG=/var/log/letsencrypt/build.log
-CMD="/usr/bin/build-certs >> ${LOG} 2>&1; /usr/sbin/nginx -s reload"
+CMD="/usr/sbin/nginx -s reload"
+if [[ "${DISABLE_CERTBOT}" != "true" && -e /usr/bin/certbot ]]; then
+    CMD="/usr/bin/build-certs >> ${LOG} 2>&1; ${CMD}"
+fi
 # https://github.com/yandex/gixy#usage
 if [[ "${DISABLE_GIXY}" != "true" && -e /usr/bin/gixy ]]; then
     # Note: Gixy will search all `include` directives

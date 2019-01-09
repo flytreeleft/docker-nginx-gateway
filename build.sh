@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IMAGE_VERSION=1.11.2-r2
+IMAGE_VERSION=1.11.2-r3
 IMAGE_NAME=flytreeleft/nginx-gateway
 
 docker build --rm -t ${IMAGE_NAME}:${IMAGE_VERSION} .

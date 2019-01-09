@@ -28,7 +28,7 @@ The image version is formated as `<nginx version>-r<revision number>[p<patch num
 Run the following commands in the root directory of this git repository:
 
 ```bash
-IMAGE_VERSION=1.11.2-r2
+IMAGE_VERSION=1.11.2-r3
 IMAGE_NAME=flytreeleft/nginx-gateway:${IMAGE_VERSION}
 
 docker build --rm -t ${IMAGE_NAME} .
@@ -37,7 +37,7 @@ docker build --rm -t ${IMAGE_NAME} .
 If you want to enable [GeoIp2](https://github.com/leev/ngx_http_geoip2_module), just set the build argument `enable_geoip` to `true`:
 
 ```bash
-IMAGE_VERSION=1.11.2-r2
+IMAGE_VERSION=1.11.2-r3
 IMAGE_NAME=flytreeleft/nginx-gateway-with-geoip:${IMAGE_VERSION}
 
 docker build --rm --build-arg enable_geoip=true -t ${IMAGE_NAME} .
@@ -46,7 +46,7 @@ docker build --rm --build-arg enable_geoip=true -t ${IMAGE_NAME} .
 ### Create and run
 
 ```bash
-DCR_IMAGE_VERSION=1.11.2-r2
+DCR_IMAGE_VERSION=1.11.2-r3
 
 DCR_NAME=nginx-gateway
 DCR_IMAGE=flytreeleft/nginx-gateway:${DCR_IMAGE_VERSION}
@@ -67,6 +67,7 @@ docker run -d --name ${DCR_NAME} \
                 -e DEBUG=${DEBUG} \
                 -e CERT_EMAIL=${CERT_EMAIL} \
                 -e ENABLE_CUSTOM_ERROR_PAGE=${ENABLE_CUSTOM_ERROR_PAGE} \
+                -e DISABLE_CERTBOT=false \
                 -e DISABLE_GIXY=false \
                 -v /usr/share/zoneinfo:/usr/share/zoneinfo:ro \
                 -v /etc/localtime:/etc/localtime:ro \
@@ -82,6 +83,7 @@ docker run -d --name ${DCR_NAME} \
 - If you want to use your error pages, just set `ENABLE_CUSTOM_ERROR_PAGE` to `false`, and put your configuration (e.g. [config/error-pages/01_default.conf](./config/error-pages/01_default.conf)) and error pages to `${STORAGE}/epage.d`.
 - Mapping `/usr/share/zoneinfo` and `/etc/localtime` from the host machine to make sure the container use the same Time Zone with the host.
 - The access and error log will be put in the directory `/var/log/nginx/sites/{domain}`. The access log file will be named as `access_{date}.log` (e.g. `access_2018-04-26.log`), and the error log will be named as `error.log`.
+- Set `DISABLE_CERTBOT` to `true` if you want to disable [certbot](https://certbot.eff.org/docs/using.html) to register or update [Let’s Encrypt](https://letsencrypt.org/) certificate automatically. If certbot is disabled, you can run `$ docker exec -it nginx-gateway sh -c '/usr/bin/build-certs && /usr/sbin/nginx -s reload'` to update **Let’s Encrypt** certificate manually.
 - Set `DISABLE_GIXY` to `true` if you don't want to run Gixy to check Nginx configuration files when they are changed. Otherwise, you can run `docker logs --tail 100 ${DCR_NAME}` to check the detection results.
 
 ## How to configure your site?
