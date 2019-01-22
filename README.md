@@ -43,6 +43,8 @@ IMAGE_NAME=flytreeleft/nginx-gateway-with-geoip:${IMAGE_VERSION}
 docker build --rm --build-arg enable_geoip=true -t ${IMAGE_NAME} .
 ```
 
+**Note**: You can run `docker pull flytreeleft/nginx-gateway` or `docker pull flytreeleft/nginx-gateway-with-geoip` to get the latest image from the [Docker Hub](https://hub.docker.com/u/flytreeleft).
+
 ### Create and run
 
 ```bash
