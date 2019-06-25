@@ -11,7 +11,7 @@ end
 local opts = {
     -- Redirect uri which doesn't exist and cannot be '/'
     redirect_uri_path = "/redirect_uri",
-    discovery = "https://sso.dhcc-itsm.com/auth/realms/"..ngx.var.oidc_realm.."/.well-known/openid-configuration",
+    discovery = "https://sso.example.com/auth/realms/"..ngx.var.oidc_realm.."/.well-known/openid-configuration",
     client_id = ngx.var.oidc_client_id,
     --client_secret = ngx.var.oidc_client_secret,
     ssl_verify = "no",
