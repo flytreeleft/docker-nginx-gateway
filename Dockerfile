@@ -1,18 +1,17 @@
 # https://github.com/nginxinc/docker-nginx/blob/master/mainline/alpine/Dockerfile
-FROM alpine:3.5
+FROM alpine:3.10
 MAINTAINER flytreeleft <flytreeleft@126.com>
 
 
-ENV LUA_JIT_VERSION 2.0.5
-ENV LUA_ROCKS_VERSION 2.4.2
-ENV LUA_CJSON_VERSION 2.1.0
-ENV LUA_RESTY_STRING_VERSION 0.09
-ENV LUA_RESTY_SESSION_VERSION 2.17
+ENV LUA_JIT_VERSION 2.1-20190912
+ENV LUA_ROCKS_VERSION 3.2.1
+ENV LUA_RESTY_LRUCACHE_VERSION 0.09
+ENV LUA_RESTY_CORE_VERSION 0.1.17
+ENV LUA_RESTY_STRING_VERSION 0.11
 
-#ENV NGINX_VERSION 1.13.1
-ENV NGINX_VERSION 1.11.2
-ENV NDK_VERSION 0.3.0
-ENV NGX_LUA_VERSION 0.10.8
+ENV NGINX_VERSION 1.15.12
+ENV NDK_VERSION 0.3.1
+ENV NGX_LUA_VERSION 0.10.15
 ENV NGX_GEOIP2_VERSION 2.0
 
 RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
@@ -57,6 +56,8 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
         --with-file-aio \
         --with-http_v2_module \
     " \
+    && apk add --update --no-cache openssl ca-certificates \
+    && update-ca-certificates \
     && addgroup -S nginx \
     && adduser -D -S -h /var/cache/nginx -s /sbin/nologin -G nginx nginx \
     && apk add --no-cache --virtual .build-deps \
@@ -69,16 +70,17 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
         zlib-dev \
         linux-headers \
         curl \
+        unzip \
         gnupg \
         libxslt-dev \
         gd-dev \
         libmaxminddb \
         libmaxminddb-dev \
-    && curl -fSL http://luajit.org/download/LuaJIT-$LUA_JIT_VERSION.tar.gz  -o lua-jit.tar.gz \
+    && curl -fSL https://github.com/openresty/luajit2/archive/v$LUA_JIT_VERSION.tar.gz  -o lua-jit.tar.gz \
     && curl -fSL https://github.com/luarocks/luarocks/archive/v$LUA_ROCKS_VERSION.tar.gz  -o lua-rocks.tar.gz \
-    && curl -fSL https://github.com/mpx/lua-cjson/archive/$LUA_CJSON_VERSION.tar.gz  -o lua-cjson.tar.gz \
+    && curl -fSL https://github.com/openresty/lua-resty-lrucache/archive/v$LUA_RESTY_LRUCACHE_VERSION.tar.gz  -o lua-resty-lrucache.tar.gz \
+    && curl -fSL https://github.com/openresty/lua-resty-core/archive/v$LUA_RESTY_CORE_VERSION.tar.gz  -o lua-resty-core.tar.gz \
     && curl -fSL https://github.com/openresty/lua-resty-string/archive/v$LUA_RESTY_STRING_VERSION.tar.gz  -o lua-resty-string.tar.gz \
-    && curl -fSL https://github.com/bungle/lua-resty-session/archive/v$LUA_RESTY_SESSION_VERSION.tar.gz -o lua-resty-session.tar.gz \
     && curl -fSL http://nginx.org/download/nginx-$NGINX_VERSION.tar.gz -o nginx.tar.gz \
     && curl -fSL http://nginx.org/download/nginx-$NGINX_VERSION.tar.gz.asc  -o nginx.tar.gz.asc \
     && curl -fSL https://github.com/simpl/ngx_devel_kit/archive/v$NDK_VERSION.tar.gz  -o ngx_devel_kit.tar.gz \
@@ -101,38 +103,38 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && mkdir -p /usr/src \
     && tar -zxC /usr/src -f lua-jit.tar.gz \
     && tar -zxC /usr/src -f lua-rocks.tar.gz \
-    && tar -zxC /usr/src -f lua-cjson.tar.gz \
+    && tar -zxC /usr/src -f lua-resty-lrucache.tar.gz \
+    && tar -zxC /usr/src -f lua-resty-core.tar.gz \
     && tar -zxC /usr/src -f lua-resty-string.tar.gz \
-    && tar -zxC /usr/src -f lua-resty-session.tar.gz \
     && tar -zxC /usr/src -f nginx.tar.gz \
     && tar -zxC /usr/src -f ngx_devel_kit.tar.gz \
     && tar -zxC /usr/src -f lua-nginx-module.tar.gz \
     && tar -zxC /usr/src -f ngx_http_geoip2_module.tar.gz \
     && rm -f *.tar.gz \
-    && cd /usr/src/LuaJIT-$LUA_JIT_VERSION \
+    && cd /usr/src/luajit2-$LUA_JIT_VERSION \
     && make \
     && make install \
     && ln -sf /usr/local/bin/luajit /usr/local/bin/lua \
     && export LUAJIT_LIB=/usr/local/lib \
-    && export LUAJIT_INC=/usr/local/include/luajit-2.0 \
+    && export LUAJIT_INC=/usr/local/include/luajit-2.1 \
     && cd /usr/src/luarocks-$LUA_ROCKS_VERSION \
     && ./configure --prefix=/usr/local \
-            --lua-suffix=jit-$LUA_JIT_VERSION \
+            --lua-suffix=jit \
             --with-lua=/usr/local \
             --with-lua-include=$LUAJIT_INC \
             --with-lua-lib=$LUAJIT_LIB \
     && make build \
     && make install \
-    && cd /usr/src/lua-cjson-$LUA_CJSON_VERSION \
-    && make LUA_VERSION=5.1 LUA_INCLUDE_DIR=$LUAJIT_INC \
-    && make install \
     && cd /usr/src/lua-resty-string-$LUA_RESTY_STRING_VERSION \
     && make \
     && make install LUA_INCLUDE_DIR=$LUAJIT_INC LUA_LIB_DIR=/usr/local/share/lua/5.1 \
     # Install Lua moduels
+    && luarocks install lua-resty-http \
+    && luarocks install lua-resty-session \
+    && luarocks install lua-resty-jwt \
     && luarocks install lua-resty-openidc \
-    # Fix issue: https://github.com/pingidentity/lua-resty-openidc/wiki#why-does-my-browser-get-in-to-a-redirect-loop
-    && cp -r /usr/src/lua-resty-session-$LUA_RESTY_SESSION_VERSION/lib/resty /usr/local/share/lua/5.1 \
+    && cp -r /usr/src/lua-resty-lrucache-$LUA_RESTY_LRUCACHE_VERSION/lib/* /usr/local/share/lua/5.1 \
+    && cp -r /usr/src/lua-resty-core-$LUA_RESTY_CORE_VERSION/lib/* /usr/local/share/lua/5.1 \
     && cd /usr/src/nginx-$NGINX_VERSION \
     && ./configure $CONFIG \
             --with-debug \
@@ -192,8 +194,8 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 
 
 # Fix issue "wget: can't execute 'ssl_helper'": https://github.com/Yelp/dumb-init/issues/73
-RUN apk add --update --no-cache openssl certbot ca-certificates \
-    && update-ca-certificates
+RUN apk add --update --no-cache certbot \
+    && ln -s /usr/bin/python3 /usr/bin/python
 # https://github.com/docker-library/python/blob/master/3.7/alpine3.7/Dockerfile
 RUN set -ex; \
 	wget -O get-pip.py 'https://bootstrap.pypa.io/get-pip.py'; \
