@@ -5,16 +5,10 @@ CERTS=${CERTBOT}/live
 LOG=${NGINX_SITES_LOG}
 # NOTE: All cluster nodes should share challenges
 WEBROOT=${CERTBOT}
-EMAIL=${CERT_EMAIL}
 LOCK=${CERTBOT}/.lck
 
 if [ "x$LOCK" = "x" ]; then
     echo "CERTBOT_LOCK is undefined."
-    exit 1
-fi
-
-if [ "x$EMAIL" = "x" ]; then
-    echo "CERT_EMAIL is undefined."
     exit 1
 fi
 
@@ -25,45 +19,45 @@ else
     touch ${LOCK}
 fi
 
+rm -f /etc/letsencrypt/domains.txt
 # include /etc/nginx/vhost.d/<domain-name>/*.conf;
 DOMAINS=`find ${VHOSTS} -maxdepth 1 -name "*.conf" -exec grep -E "\binclude\s+${VHOSTS}/.+;" {} \; | sed -E "s/.*\binclude\b.*\/([^\/]+)\/[^\/]+/\1/g;" | sort | uniq`
 for domain in `echo $DOMAINS | sed "s/\s\+/\n/g"`; do
-    if [ ! -d ${CERTS}/${domain} ]; then
-        # https://github.com/sebble/docker-images/blob/master/letsencrypt-certbot/README.md#register-new-domain
-        # https://certbot.eff.org/docs/using.html
-        certbot certonly \
-                    --webroot --text \
-                    --duplicate \
-                    --agree-tos --noninteractive \
-                    --preferred-challenges http-01 \
-                    --staple-ocsp --must-staple \
-                    --rsa-key-size 2048 \
-                    --webroot-path ${WEBROOT} \
-                    --email ${EMAIL} \
-                    -d ${domain}
-        if [[ $? = "0" ]]; then
-            subdir=${VHOSTS}/${domain}
-            conf=${CERTS}/${domain}
-            log=${LOG}/${domain}
+    subdir=${VHOSTS}/${domain}
+    conf=${CERTS}/${domain}
+    log=${LOG}/${domain}
 
-            mkdir -p ${subdir} ${log}
-            chown -R nginx ${log}
-            # https://github.com/certbot/certbot/issues/1813#issuecomment-163222670
-            # https://wiki.mozilla.org/Security/TLS_Configurations
-            # https://gist.github.com/nrollr/9a39bb636a820fb97eec2ed85e473d38
-            echo "# SSL and OCSP Stapling
-ssl_stapling on;
-ssl_stapling_verify on;
-ssl_trusted_certificate ${conf}/chain.pem;
-ssl_certificate ${conf}/fullchain.pem;
-ssl_certificate_key ${conf}/privkey.pem;" > ${subdir}/01_ssl.conf
-            echo "# Error and access log
+    mkdir -p ${subdir} ${log}
+    chown -R nginx ${log}
+
+    echo $domain >> /etc/letsencrypt/domains.txt
+
+    echo "# SSL and OCSP Stapling
+# ssl_stapling on;
+# ssl_stapling_verify on;
+
+# fallback certs, make sure to create them before hand
+ssl_certificate /etc/nginx/ssl/acme/default.pem;
+ssl_certificate_key /etc/nginx/ssl/acme/default.key;
+ssl_certificate_by_lua_block {
+    require(\"resty.acme.autossl\").ssl_certificate()
+}
+
+location /.well-known {
+    content_by_lua_block {
+        require(\"resty.acme.autossl\").serve_http_challenge()
+    }
+}
+" > ${subdir}/01_ssl.conf
+
+    echo "# Error and access log
 error_log ${log}/error.log debug;
-access_log ${log}/access\$logdate.log main;" > ${subdir}/02_log.conf
-            echo "# Custom error page
-include /etc/nginx/epage.d/*.conf;" > ${subdir}/03_epage.conf
-        fi
-    fi
+access_log ${log}/access\$logdate.log main;
+" > ${subdir}/02_log.conf
+
+    echo "# Custom error page
+include /etc/nginx/epage.d/*.conf;
+" > ${subdir}/03_epage.conf
 done
 
 rm ${LOCK}

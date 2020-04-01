@@ -1,7 +1,5 @@
 #!/bin/sh
 
-crond -c /var/spool/cron/crontabs -b -L /var/log/cron/cron.log
-
 ERROR_PAGES=${EPAGED}
 if [[ "$(ls -A "${ERROR_PAGES}" 2>/dev/null)" = "" || "${ENABLE_CUSTOM_ERROR_PAGE}" = "force" ]]; then
     cp -r ${DEFAULT_ERROR_PAGES}/* ${ERROR_PAGES}
@@ -24,7 +22,7 @@ esac
 
 LOG=/var/log/letsencrypt/build.log
 CMD="/usr/sbin/nginx -s reload"
-if [[ "${DISABLE_CERTBOT}" != "true" && -e /usr/bin/certbot ]]; then
+if [[ "${DISABLE_CERTBOT}" != "true" ]]; then
     CMD="/usr/bin/build-certs >> ${LOG} 2>&1; ${CMD}"
 fi
 # https://github.com/yandex/gixy#usage

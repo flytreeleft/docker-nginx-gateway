@@ -133,6 +133,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && luarocks install lua-resty-session \
     && luarocks install lua-resty-jwt \
     && luarocks install lua-resty-openidc \
+    && luarocks install lua-resty-acme \
     && cp -r /usr/src/lua-resty-lrucache-$LUA_RESTY_LRUCACHE_VERSION/lib/* /usr/local/share/lua/5.1 \
     && cp -r /usr/src/lua-resty-core-$LUA_RESTY_CORE_VERSION/lib/* /usr/local/share/lua/5.1 \
     && cd /usr/src/nginx-$NGINX_VERSION \
@@ -193,23 +194,27 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
 
-# Fix issue "wget: can't execute 'ssl_helper'": https://github.com/Yelp/dumb-init/issues/73
-RUN apk add --update --no-cache certbot \
-    && ln -s /usr/bin/python3 /usr/bin/python
+ARG enable_gixy=false
 # https://github.com/docker-library/python/blob/master/3.7/alpine3.7/Dockerfile
 RUN set -ex; \
-	wget -O get-pip.py 'https://bootstrap.pypa.io/get-pip.py'; \
-	python get-pip.py \
+    [[ "${enable_gixy}" = "true" ]] \
+    && apk add --update --no-cache python3 \
+    && ln -s /usr/bin/python3 /usr/bin/python \
+	&& wget -O get-pip.py 'https://bootstrap.pypa.io/get-pip.py' \
+	&& python get-pip.py \
 		--no-cache-dir \
-	; \
-	pip --version; \
-	find /usr/local -depth \
+	&& pip --version \
+	&& find /usr/local -depth \
 		\( \
 			\( -type d -a \( -name test -o -name tests \) \) \
 			-o \
 			\( -type f -a \( -name '*.pyc' -o -name '*.pyo' \) \) \
 		\) -exec rm -rf '{}' +; \
-	rm -f get-pip.py
+	rm -f get-pip.py \
+    ; echo ""
+# https://github.com/yandex/gixy
+RUN [[ "${enable_gixy}" = "true" ]] && pip install gixy \
+    ; echo ""
 
 
 ARG enable_geoip=false
@@ -232,11 +237,6 @@ RUN [[ "${enable_geoip}" = "true" ]] \
     ; echo ""
 
 
-ARG enable_gixy=true
-# https://github.com/yandex/gixy
-RUN [[ "${enable_gixy}" = "true" ]] && pip install gixy
-
-
 ENV DEBUG=false
 ENV DOMAIN=
 ENV CERT_EMAIL=
@@ -249,13 +249,27 @@ ENV CERTBOT=/etc/letsencrypt
 ENV NGINX_LOG=/var/log/nginx
 ENV NGINX_SITES_LOG=/var/log/nginx/sites
 
-RUN mkdir -p /etc/nginx/ssl && openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
+RUN mkdir -p /etc/nginx/ssl \
+    && openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
+# https://github.com/fffonion/lua-resty-acme#synopsis
+RUN mkdir -p /etc/nginx/ssl/acme \
+    && openssl genpkey \
+        -algorithm RSA -pkeyopt rsa_keygen_bits:4096 \
+        -out /etc/nginx/ssl/acme/account.key \
+    && openssl req \
+        -newkey rsa:2048 -nodes \
+        -x509 -days 3650 \
+        -subj "/C=XX/ST=XX/L=XX/O=XX/OU=XX/CN=XX" \
+        -keyout /etc/nginx/ssl/acme/default.key \
+        -out /etc/nginx/ssl/acme/default.pem
+
 RUN rm -rf /root/.cache
 
-RUN mkdir -p /var/log/cron /var/log/letsencrypt ${NGINX_LOG} ${NGINX_SITES_LOG}
+RUN mkdir -p /var/log/letsencrypt /etc/nginx/lua /etc/nginx/vstream.d ${NGINX_LOG} ${NGINX_SITES_LOG}
 #RUN mkdir -p /var/www/html && chown -R nginx:nginx /var/www/html
 RUN rm -f /etc/nginx/conf.d/default.conf
 
+ADD config/lua_acme_init.lua /etc/nginx/lua/lua_acme_init.lua
 ADD config/nginx.conf /etc/nginx/nginx.conf
 ADD config/00_vars.conf /etc/nginx/conf.d/00_vars.conf
 ADD config/00_log.conf /etc/nginx/conf.d/00_log.conf
@@ -264,9 +278,8 @@ ADD config/02_proxy.conf /etc/nginx/conf.d/02_proxy.conf
 ADD config/03_geoip2.conf /etc/nginx/conf.d/03_geoip2.conf
 ADD config/00_log_with_geoip.conf /etc/nginx/conf.d/00_log_with_geoip.conf
 ADD config/10_default.conf /etc/nginx/conf.d/10_default.conf
-
-# NOTE: The other crontab file will not be scaned
-COPY config/crontab /var/spool/cron/crontabs/root
+ADD config/20_acme.conf /etc/nginx/conf.d/20_acme.conf
+ADD config/10_stream_acme.conf /etc/nginx/vstream.d/10_stream_acme.conf
 
 ADD bin/build-certs /usr/bin/build-certs
 ADD bin/update-certs /usr/bin/update-certs
