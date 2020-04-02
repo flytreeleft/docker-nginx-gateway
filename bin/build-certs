@@ -1,11 +1,9 @@
 #!/bin/sh
 
-VHOSTS=${VHOSTD}
-CERTS=${CERTBOT}/live
-LOG=${NGINX_SITES_LOG}
+VHOSTS="${VHOSTD}"
+LOG="${NGINX_SITES_LOG}"
 # NOTE: All cluster nodes should share challenges
-WEBROOT=${CERTBOT}
-LOCK=${CERTBOT}/.lck
+LOCK="${CERTBOT}/.lck"
 
 if [ "x$LOCK" = "x" ]; then
     echo "CERTBOT_LOCK is undefined."
@@ -19,35 +17,48 @@ else
     touch ${LOCK}
 fi
 
-rm -f /etc/letsencrypt/domains.txt
+cat > /tmp/dehydrated.cfg << EOF
+CERTDIR="${CERT_DIR}/certs"
+CHALLENGETYPE="tls-alpn-01"
+WELLKNOWN="${CERT_DIR}/.well-known/acme-challenge"
+ALPNCERTDIR="${CERT_DIR}/alpn-certs"
+DOMAINS_TXT="${CERT_DIR}/domains.txt"
+ACCOUNTDIR="${CERT_DIR}/accounts"
+EOF
+if [ "${CERT_STAGING}" = "true" ]; then
+    echo 'CA="https://acme-staging-v02.api.letsencrypt.org/directory"' >> /tmp/dehydrated.cfg
+fi
+
+rm -f "${CERT_DIR}/domains.txt"
 # include /etc/nginx/vhost.d/<domain-name>/*.conf;
 DOMAINS=`find ${VHOSTS} -maxdepth 1 -name "*.conf" -exec grep -E "\binclude\s+${VHOSTS}/.+;" {} \; | sed -E "s/.*\binclude\b.*\/([^\/]+)\/[^\/]+/\1/g;" | sort | uniq`
 for domain in `echo $DOMAINS | sed "s/\s\+/\n/g"`; do
     subdir=${VHOSTS}/${domain}
-    conf=${CERTS}/${domain}
+    if [ -e "${subdir}/01_ssl.conf" ]; then
+        continue
+    fi
+
+    /usr/bin/dehydrated.sh --cron --accept-terms --config /tmp/dehydrated.cfg --domain $domain
+    if [ "$?" -ne "0" ]; then
+        continue
+    fi
+
+    sed -i -E 's/(listen .+)\s+ssl(.*);/\1 \2;/g; s/(listen .+);/\1 ssl;/g' ${VHOSTS}/${domain}.conf
+    echo $domain >> "${CERT_DIR}/domains.txt"
+
+    conf=${CERT_DIR}/certs/${domain}
     log=${LOG}/${domain}
 
     mkdir -p ${subdir} ${log}
     chown -R nginx ${log}
 
-    echo $domain >> /etc/letsencrypt/domains.txt
-
     echo "# SSL and OCSP Stapling
-# ssl_stapling on;
-# ssl_stapling_verify on;
+ssl_stapling on;
+ssl_stapling_verify on;
 
-# fallback certs, make sure to create them before hand
-ssl_certificate /etc/nginx/ssl/acme/default.pem;
-ssl_certificate_key /etc/nginx/ssl/acme/default.key;
-ssl_certificate_by_lua_block {
-    require(\"resty.acme.autossl\").ssl_certificate()
-}
-
-location /.well-known {
-    content_by_lua_block {
-        require(\"resty.acme.autossl\").serve_http_challenge()
-    }
-}
+ssl_trusted_certificate ${conf}/chain.pem;
+ssl_certificate ${conf}/fullchain.pem;
+ssl_certificate_key ${conf}/privkey.pem;
 " > ${subdir}/01_ssl.conf
 
     echo "# Error and access log

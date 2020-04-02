@@ -20,17 +20,22 @@ case ${ENABLE_CUSTOM_ERROR_PAGE} in
         ;;
 esac
 
-LOG=/var/log/letsencrypt/build.log
-CMD="/usr/sbin/nginx -s reload"
+CERT_BUILD_CMD="/usr/sbin/nginx -s reload"
 if [[ "${DISABLE_CERTBOT}" != "true" ]]; then
-    CMD="/usr/bin/build-certs >> ${LOG} 2>&1; ${CMD}"
+    /usr/bin/python3 /usr/bin/acme-responder.py >> "${CERT_DIR}/acme-responder.log" 2>&1 &
+    echo "Wait ACME Responder to be ready ..." && sleep 5s
+
+    CERT_BUILD_CMD="/usr/bin/build-certs >> '${CERT_DIR}/build.log' 2>&1; ${CERT_BUILD_CMD}"
+    # First running
+    eval "sleep 5s; ${CERT_BUILD_CMD}" &
 fi
+/usr/bin/watch-config -- "${CERT_BUILD_CMD}" &
+
 # https://github.com/yandex/gixy#usage
 if [[ "${DISABLE_GIXY}" != "true" && -e /usr/bin/gixy ]]; then
     # Note: Gixy will search all `include` directives
-    CMD="/usr/bin/gixy /etc/nginx/nginx.conf; ${CMD}"
+    /usr/bin/gixy /etc/nginx/nginx.conf
 fi
-/usr/bin/watch-config -- "${CMD}" &
 
 NGINX=nginx
 if [[ "${DEBUG}" = "true" ]]; then

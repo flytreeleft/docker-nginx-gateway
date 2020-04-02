@@ -50,6 +50,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
         --with-threads \
         --with-stream \
         --with-stream_ssl_module \
+        --with-stream_ssl_preread_module \
         --with-http_slice_module \
         --with-mail \
         --with-mail_ssl_module \
@@ -194,12 +195,13 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
 
+RUN apk add --update --no-cache bash python3 \
+    && ln -s /usr/bin/python3 /usr/bin/python
+
 ARG enable_gixy=false
 # https://github.com/docker-library/python/blob/master/3.7/alpine3.7/Dockerfile
 RUN set -ex; \
     [[ "${enable_gixy}" = "true" ]] \
-    && apk add --update --no-cache python3 \
-    && ln -s /usr/bin/python3 /usr/bin/python \
 	&& wget -O get-pip.py 'https://bootstrap.pypa.io/get-pip.py' \
 	&& python get-pip.py \
 		--no-cache-dir \
@@ -240,12 +242,12 @@ RUN [[ "${enable_geoip}" = "true" ]] \
 ENV DEBUG=false
 ENV DOMAIN=
 ENV CERT_EMAIL=
+ENV CERT_DIR=/etc/letsencrypt
 ENV ENABLE_CUSTOM_ERROR_PAGE=false
 ENV DEFAULT_ERROR_PAGES=/usr/share/nginx/error-pages
 ENV VHOSTD=/etc/nginx/vhost.d
 ENV STREAMD=/etc/nginx/stream.d
 ENV EPAGED=/etc/nginx/epage.d
-ENV CERTBOT=/etc/letsencrypt
 ENV NGINX_LOG=/var/log/nginx
 ENV NGINX_SITES_LOG=/var/log/nginx/sites
 
@@ -278,12 +280,14 @@ ADD config/02_proxy.conf /etc/nginx/conf.d/02_proxy.conf
 ADD config/03_geoip2.conf /etc/nginx/conf.d/03_geoip2.conf
 ADD config/00_log_with_geoip.conf /etc/nginx/conf.d/00_log_with_geoip.conf
 ADD config/10_default.conf /etc/nginx/conf.d/10_default.conf
-ADD config/20_acme.conf /etc/nginx/conf.d/20_acme.conf
+# ADD config/20_acme.conf /etc/nginx/conf.d/20_acme.conf
 ADD config/10_stream_acme.conf /etc/nginx/vstream.d/10_stream_acme.conf
 
 ADD bin/build-certs /usr/bin/build-certs
 ADD bin/update-certs /usr/bin/update-certs
 ADD bin/watch-config /usr/bin/watch-config
+ADD bin/acme-responder.py /usr/bin/acme-responder.py
+ADD bin/dehydrated.sh /usr/bin/dehydrated.sh
 ADD bin/entrypoint.sh /entrypoint.sh
 
 ADD config/error-pages ${DEFAULT_ERROR_PAGES}
@@ -291,10 +295,10 @@ ADD config/error-pages ${DEFAULT_ERROR_PAGES}
 RUN [[ "${enable_geoip}" != "true" ]] \
     && rm -f /etc/nginx/conf.d/*geoip* \
     ; echo ""
-RUN mkdir -p ${VHOSTD} ${STREAMD} ${CERTBOT} ${EPAGED}
-RUN chmod +x /usr/bin/build-certs /usr/bin/update-certs /usr/bin/watch-config /entrypoint.sh
+RUN mkdir -p ${VHOSTD} ${STREAMD} ${CERT_DIR} ${EPAGED} /etc/letsencrypt/certs /etc/letsencrypt/alpn-certs /etc/letsencrypt/accounts
+RUN chmod +x /usr/bin/build-certs /usr/bin/update-certs /usr/bin/watch-config /usr/bin/dehydrated.sh /entrypoint.sh
 
-VOLUME ["${VHOSTD}", "${STREAMD}", "${EPAGED}", "${CERTBOT}"]
+VOLUME ["${VHOSTD}", "${STREAMD}", "${EPAGED}", "${CERT_DIR}"]
 
 EXPOSE 80 443
 
