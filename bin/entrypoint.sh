@@ -20,6 +20,7 @@ esac
 
 if [ ! -d "/opt/acme.sh" ]; then
     pushd /opt/acme.sh-src
+        # https://github.com/acmesh-official/acme.sh
         bash ./acme.sh \
             --install  \
             --home /opt/acme.sh \

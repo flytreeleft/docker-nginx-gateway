@@ -13,11 +13,18 @@ else
     touch ${LOCK}
 fi
 
+CERT_DIR=/etc/letsencrypt
+VHOSTD=/etc/nginx/vhost.d
+
+# https://github.com/acmesh-official/acme.sh
 /usr/bin/acme.sh \
     --cron \
     --home /opt/acme.sh \
     --config-home "${CERT_DIR}/config" \
-    --reloadcmd "/usr/sbin/nginx -s reload" \
+    --reloadcmd "\
+    chown -R nginx:nginx ${VHOSTD} ${CERT_DIR}/certs \
+    && chmod go-rw -R ${VHOSTD} ${CERT_DIR}/certs \
+    && /usr/sbin/nginx -s reload" \
     2>/dev/null
 
 rm ${LOCK}
