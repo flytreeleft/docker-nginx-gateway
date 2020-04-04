@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 VHOSTS="${VHOSTD}"
 LOG="${NGINX_SITES_LOG}"
@@ -17,59 +17,68 @@ else
     touch ${LOCK}
 fi
 
-cat > /tmp/dehydrated.cfg << EOF
-CONTACT_EMAIL="${CERT_EMAIL}"
-CERTDIR="${CERT_DIR}/certs"
-CHALLENGETYPE="tls-alpn-01"
-WELLKNOWN="${CERT_DIR}/.well-known/acme-challenge"
-ALPNCERTDIR="${CERT_DIR}/alpn-certs"
-DOMAINS_TXT="${CERT_DIR}/domains.txt"
-ACCOUNTDIR="${CERT_DIR}/accounts"
-EOF
+
+ACME_CMD="acme.sh --issue \
+--config-home '${CERT_DIR}/config' \
+--accountemail '${CERT_EMAIL}' \
+-w '${CERT_DIR}' -k 4096"
+
 if [ "${CERT_STAGING}" = "true" ]; then
-    echo 'CA="https://acme-staging-v02.api.letsencrypt.org/directory"' >> /tmp/dehydrated.cfg
+    ACME_CMD="${ACME_CMD} --staging"
+fi
+if [ "${CERT_CHALLENGE_TYPE}" = "alpn" ]; then
+    ACME_CMD="${ACME_CMD} --alpn --tlsport 21443"
 fi
 
-rm -f "${CERT_DIR}/domains.txt"
 # include /etc/nginx/vhost.d/<domain-name>/*.conf;
 DOMAINS=`find ${VHOSTS} -maxdepth 1 -name "*.conf" -exec grep -E "\binclude\s+${VHOSTS}/.+;" {} \; | sed -E "s/.*\binclude\b.*\/([^\/]+)\/[^\/]+/\1/g;" | sort | uniq`
 for domain in `echo $DOMAINS | sed "s/\s\+/\n/g"`; do
-    subdir=${VHOSTS}/${domain}
-    if [ -e "${subdir}/01_ssl.conf" ]; then
-        continue
+    domain_sub_dir="${VHOSTS}/${domain}"
+    domain_log_dir="${LOG}/${domain}"
+    domain_cert_dir="${CERT_DIR}/certs/${domain}"
+    domain_conf="${VHOSTS}/${domain}.conf"
+
+    if [ "${CERT_CHALLENGE_TYPE}" = "alpn" ]; then
+        if [ "x$(grep -E 'listen .*\b443\b' "${domain_conf}")" != "x" ]; then
+            sed -i -E 's/(listen .*)\b443\b(.*);/\120443\2;/g;' "${domain_conf}"
+        fi
+    fi
+    if [ ! -e "${domain_sub_dir}/01_ssl.conf" ]; then
+        sed -i -E 's/(listen .+)\s+ssl(.*);/\1 \2;/g;' "${domain_conf}"
     fi
 
-    /usr/bin/dehydrated.sh --cron --accept-terms --config /tmp/dehydrated.cfg --domain $domain
+    eval "${ACME_CMD} -d ${domain} \
+            --cert-file '${domain_cert_dir}/cert.pem' \
+            --key-file '${domain_cert_dir}/privkey.pem' \
+            --fullchain-file '${domain_cert_dir}/fullchain.pem' \
+            2>/dev/null"
     if [ "$?" -ne "0" ]; then
         continue
     fi
+    if [ "x$(grep -E 'listen .*ssl' "${domain_conf}")" = "x" ]; then
+        sed -i -E 's/(listen .+);/\1 ssl;/g;' "${domain_conf}"
+    fi
 
-    sed -i -E 's/(listen .+)\s+ssl(.*);/\1 \2;/g; s/(listen .+);/\1 ssl;/g' ${VHOSTS}/${domain}.conf
-    echo $domain >> "${CERT_DIR}/domains.txt"
-
-    conf=${CERT_DIR}/certs/${domain}
-    log=${LOG}/${domain}
-
-    mkdir -p ${subdir} ${log}
-    chown -R nginx ${log}
+    mkdir -p "${domain_sub_dir}" "${domain_log_dir}"
+    chown -R nginx "${domain_log_dir}"
 
     echo "# SSL and OCSP Stapling
 ssl_stapling on;
 ssl_stapling_verify on;
 
-ssl_trusted_certificate ${conf}/chain.pem;
-ssl_certificate ${conf}/fullchain.pem;
-ssl_certificate_key ${conf}/privkey.pem;
-" > ${subdir}/01_ssl.conf
+ssl_certificate ${domain_cert_dir}/cert.pem;
+ssl_certificate_key ${domain_cert_dir}/privkey.pem;
+ssl_trusted_certificate ${domain_cert_dir}/fullchain.pem;
+" > "${domain_sub_dir}/01_ssl.conf"
 
     echo "# Error and access log
-error_log ${log}/error.log debug;
-access_log ${log}/access\$logdate.log main;
-" > ${subdir}/02_log.conf
+error_log ${domain_log_dir}/error.log debug;
+access_log ${domain_log_dir}/access\$logdate.log main;
+" > "${domain_sub_dir}/02_log.conf"
 
     echo "# Custom error page
 include /etc/nginx/epage.d/*.conf;
-" > ${subdir}/03_epage.conf
+" > "${domain_sub_dir}/03_epage.conf"
 done
 
 rm ${LOCK}

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 LOCK=${CERTBOT}/.lck
 
@@ -13,6 +13,11 @@ else
     touch ${LOCK}
 fi
 
-/usr/bin/certbot renew --no-self-upgrade --post-hook "/usr/sbin/nginx -s reload"
+/usr/bin/acme.sh \
+    --cron \
+    --home /opt/acme.sh \
+    --config-home "${CERT_DIR}/config" \
+    --reloadcmd "/usr/sbin/nginx -s reload" \
+    2>/dev/null
 
 rm ${LOCK}

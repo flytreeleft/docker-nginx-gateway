@@ -57,7 +57,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
         --with-file-aio \
         --with-http_v2_module \
     " \
-    && apk add --update --no-cache openssl ca-certificates \
+    && apk add --update --no-cache openssl ca-certificates bash curl \
     && update-ca-certificates \
     && addgroup -S nginx \
     && adduser -D -S -h /var/cache/nginx -s /sbin/nologin -G nginx nginx \
@@ -70,7 +70,6 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
         pcre-dev \
         zlib-dev \
         linux-headers \
-        curl \
         unzip \
         gnupg \
         libxslt-dev \
@@ -134,7 +133,6 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && luarocks install lua-resty-session \
     && luarocks install lua-resty-jwt \
     && luarocks install lua-resty-openidc \
-    && luarocks install lua-resty-acme \
     && cp -r /usr/src/lua-resty-lrucache-$LUA_RESTY_LRUCACHE_VERSION/lib/* /usr/local/share/lua/5.1 \
     && cp -r /usr/src/lua-resty-core-$LUA_RESTY_CORE_VERSION/lib/* /usr/local/share/lua/5.1 \
     && cd /usr/src/nginx-$NGINX_VERSION \
@@ -195,13 +193,12 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
 
-RUN apk add --update --no-cache bash python3 \
-    && ln -s /usr/bin/python3 /usr/bin/python
-
 ARG enable_gixy=false
 # https://github.com/docker-library/python/blob/master/3.7/alpine3.7/Dockerfile
 RUN set -ex; \
     [[ "${enable_gixy}" = "true" ]] \
+    && apk add --update --no-cache python3 \
+    && ln -s /usr/bin/python3 /usr/bin/python \
 	&& wget -O get-pip.py 'https://bootstrap.pypa.io/get-pip.py' \
 	&& python get-pip.py \
 		--no-cache-dir \
@@ -238,6 +235,11 @@ RUN [[ "${enable_geoip}" = "true" ]] \
     && luarocks install https://github.com/dauer/geohash/raw/master/lua/geohash-0.9-1.rockspec \
     ; echo ""
 
+RUN curl -fSL https://github.com/acmesh-official/acme.sh/archive/2.8.5.tar.gz -o acme-sh.tar.gz \
+    && tar -zxC /opt -f acme-sh.tar.gz \
+    && mv /opt/acme.sh-2.8.5 /opt/acme.sh-src \
+    && rm -f acme-sh.tar.gz
+
 
 ENV DEBUG=false
 ENV DOMAIN=
@@ -253,17 +255,6 @@ ENV NGINX_SITES_LOG=/var/log/nginx/sites
 
 RUN mkdir -p /etc/nginx/ssl \
     && openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
-# https://github.com/fffonion/lua-resty-acme#synopsis
-RUN mkdir -p /etc/nginx/ssl/acme \
-    && openssl genpkey \
-        -algorithm RSA -pkeyopt rsa_keygen_bits:4096 \
-        -out /etc/nginx/ssl/acme/account.key \
-    && openssl req \
-        -newkey rsa:2048 -nodes \
-        -x509 -days 3650 \
-        -subj "/C=XX/ST=XX/L=XX/O=XX/OU=XX/CN=XX" \
-        -keyout /etc/nginx/ssl/acme/default.key \
-        -out /etc/nginx/ssl/acme/default.pem
 
 RUN rm -rf /root/.cache
 
@@ -271,7 +262,6 @@ RUN mkdir -p /var/log/letsencrypt /etc/nginx/lua /etc/nginx/vstream.d ${NGINX_LO
 #RUN mkdir -p /var/www/html && chown -R nginx:nginx /var/www/html
 RUN rm -f /etc/nginx/conf.d/default.conf
 
-ADD config/lua_acme_init.lua /etc/nginx/lua/lua_acme_init.lua
 ADD config/nginx.conf /etc/nginx/nginx.conf
 ADD config/00_vars.conf /etc/nginx/conf.d/00_vars.conf
 ADD config/00_log.conf /etc/nginx/conf.d/00_log.conf
@@ -280,14 +270,13 @@ ADD config/02_proxy.conf /etc/nginx/conf.d/02_proxy.conf
 ADD config/03_geoip2.conf /etc/nginx/conf.d/03_geoip2.conf
 ADD config/00_log_with_geoip.conf /etc/nginx/conf.d/00_log_with_geoip.conf
 ADD config/10_default.conf /etc/nginx/conf.d/10_default.conf
-# ADD config/20_acme.conf /etc/nginx/conf.d/20_acme.conf
+# NOTE: The other crontab file will not be scaned
+COPY config/crontab /var/spool/cron/crontabs/root
 ADD config/10_stream_acme.conf /etc/nginx/vstream.d/10_stream_acme.conf
 
 ADD bin/build-certs /usr/bin/build-certs
 ADD bin/update-certs /usr/bin/update-certs
 ADD bin/watch-config /usr/bin/watch-config
-ADD bin/acme-responder.py /usr/bin/acme-responder.py
-ADD bin/dehydrated.sh /usr/bin/dehydrated.sh
 ADD bin/entrypoint.sh /entrypoint.sh
 
 ADD config/error-pages ${DEFAULT_ERROR_PAGES}
@@ -295,8 +284,8 @@ ADD config/error-pages ${DEFAULT_ERROR_PAGES}
 RUN [[ "${enable_geoip}" != "true" ]] \
     && rm -f /etc/nginx/conf.d/*geoip* \
     ; echo ""
-RUN mkdir -p ${VHOSTD} ${STREAMD} ${CERT_DIR} ${EPAGED} /etc/letsencrypt/certs /etc/letsencrypt/alpn-certs /etc/letsencrypt/accounts
-RUN chmod +x /usr/bin/build-certs /usr/bin/update-certs /usr/bin/watch-config /usr/bin/dehydrated.sh /entrypoint.sh
+RUN mkdir -p ${VHOSTD} ${STREAMD} ${CERT_DIR} ${EPAGED}
+RUN chmod +x /usr/bin/build-certs /usr/bin/update-certs /usr/bin/watch-config /entrypoint.sh
 
 VOLUME ["${VHOSTD}", "${STREAMD}", "${EPAGED}", "${CERT_DIR}"]
 
