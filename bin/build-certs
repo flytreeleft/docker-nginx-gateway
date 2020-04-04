@@ -18,6 +18,7 @@ else
 fi
 
 cat > /tmp/dehydrated.cfg << EOF
+CONTACT_EMAIL="${CERT_EMAIL}"
 CERTDIR="${CERT_DIR}/certs"
 CHALLENGETYPE="tls-alpn-01"
 WELLKNOWN="${CERT_DIR}/.well-known/acme-challenge"
