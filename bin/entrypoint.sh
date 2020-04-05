@@ -60,8 +60,6 @@ fi
 CERT_BUILD_CMD="/usr/sbin/nginx -s reload"
 if [[ "${DISABLE_CERTBOT}" != "true" ]]; then
     CERT_BUILD_CMD="/usr/bin/build-certs >> '${CERT_DIR}/build.log' 2>&1; ${CERT_BUILD_CMD}"
-    # First running
-    eval "sleep 5s; ${CERT_BUILD_CMD}" &
 fi
 /usr/bin/watch-config -- "${CERT_BUILD_CMD}" &
 

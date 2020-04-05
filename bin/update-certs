@@ -1,20 +1,14 @@
 #!/bin/bash
 
-LOCK=${CERTBOT}/.lck
-
-if [ "x$LOCK" = "x" ]; then
-    echo "CERTBOT_LOCK is undefined."
-    exit 1
-fi
+CERT_DIR=/etc/letsencrypt
+VHOSTD=/etc/nginx/vhost.d
+LOCK="${CERT_DIR}/.lck"
 
 if [ -e ${LOCK} ]; then
     exit 0
 else
     touch ${LOCK}
 fi
-
-CERT_DIR=/etc/letsencrypt
-VHOSTD=/etc/nginx/vhost.d
 
 # https://github.com/acmesh-official/acme.sh
 /usr/bin/acme.sh \

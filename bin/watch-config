@@ -43,11 +43,13 @@ is_newer() {
     echo "$result"
 }
 
+sleep 10s && eval "${CMD}"
+
 REF_FILE=/tmp/config-check.ref
 while true; do
+    sleep 10s
     if [[ $(is_newer "${REF_FILE}" "${VHOSTS}" "${STREAMS}" "${EPAGES}") = "true" ]]; then
         update_ref "${REF_FILE}"
         eval "${CMD}"
     fi
-    sleep 10s
 done
