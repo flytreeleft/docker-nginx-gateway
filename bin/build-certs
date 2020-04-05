@@ -34,6 +34,14 @@ for domain in `echo $DOMAINS | sed "s/\s\+/\n/g"`; do
     domain_cert_dir="${CERT_DIR}/certs/${domain}"
     domain_conf="${VHOSTS}/${domain}.conf"
 
+    if [ ! -e "${domain_conf}" ]; then
+        domain_conf="$(grep -rl -E "\binclude .*/${domain}/.+;" ${VHOSTS}/*.conf | head -n 1)"
+    fi
+    if [ ! -e "${domain_conf}" ]; then
+        echo "No configuration file found for the domain ${domain}, skip it."
+        continue
+    fi
+
     if [ "${CERT_CHALLENGE_TYPE}" = "alpn" ]; then
         if [ "x$(grep -E 'listen .*\b443\b' "${domain_conf}")" != "x" ]; then
             sed -i -E 's/(listen .*)\b443\b(.*);/\120443\2;/g;' "${domain_conf}"
