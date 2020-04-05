@@ -3,12 +3,7 @@
 VHOSTS="${VHOSTD}"
 LOG="${NGINX_SITES_LOG}"
 # NOTE: All cluster nodes should share challenges
-LOCK="${CERTBOT}/.lck"
-
-if [ "x$LOCK" = "x" ]; then
-    echo "CERTBOT_LOCK is undefined."
-    exit 1
-fi
+LOCK="${CERT_DIR}/.lck"
 
 if [ -e ${LOCK} ]; then
     echo "Other is updating certs now. Exit!"
@@ -48,7 +43,9 @@ for domain in `echo $DOMAINS | sed "s/\s\+/\n/g"`; do
         sed -i -E 's/(listen .+)\s+ssl(.*);/\1 \2;/g;' "${domain_conf}"
     fi
 
+    # https://www.vermouthx.com/2018/09/16/acme-sh/
     eval "${ACME_CMD} -d ${domain} \
+            --ca-file '${domain_cert_dir}/chain.pem' \
             --cert-file '${domain_cert_dir}/cert.pem' \
             --key-file '${domain_cert_dir}/privkey.pem' \
             --fullchain-file '${domain_cert_dir}/fullchain.pem' \
@@ -67,9 +64,9 @@ for domain in `echo $DOMAINS | sed "s/\s\+/\n/g"`; do
 ssl_stapling on;
 ssl_stapling_verify on;
 
-ssl_certificate ${domain_cert_dir}/cert.pem;
+ssl_certificate ${domain_cert_dir}/fullchain.pem;
 ssl_certificate_key ${domain_cert_dir}/privkey.pem;
-ssl_trusted_certificate ${domain_cert_dir}/fullchain.pem;
+ssl_trusted_certificate ${domain_cert_dir}/chain.pem;
 " > "${domain_sub_dir}/01_ssl.conf"
 
     echo "# Error and access log
