@@ -5,62 +5,49 @@ LOG="${NGINX_SITES_LOG}"
 # NOTE: All cluster nodes should share challenges
 LOCK="${CERT_DIR}/.lck"
 
-if [ -e ${LOCK} ]; then
-    echo "Other is updating certs now. Exit!"
-    exit 0
-else
-    touch ${LOCK}
-fi
+get_top_domains() {
+    echo "$@" | sed -E 's/\s+/\n/g' | awk -F. '{
+        if ( length($3) == 0 ) { print $1"."$2 }
+        else if ( length($4) == 0 ) { print $2"."$3 }
+        else if ( length($5) == 0 ) { print $2"."$3"."$4 }
+        else if ( length($6) == 0 ) { print $2"."$3"."$4"."$5 }
+    }'
+}
 
-
-# https://github.com/acmesh-official/acme.sh
-ACME_CMD="acme.sh --issue \
---config-home '${CERT_DIR}/config' \
---accountemail '${CERT_EMAIL}' \
--w '${CERT_DIR}' -k 4096"
-
-if [ "${CERT_STAGING}" = "true" ]; then
-    ACME_CMD="${ACME_CMD} --staging"
-fi
-if [ "${CERT_CHALLENGE_TYPE}" = "alpn" ]; then
-    ACME_CMD="${ACME_CMD} --alpn --tlsport 21443"
-fi
-
-# include /etc/nginx/vhost.d/<domain-name>/*.conf;
-DOMAINS=`find ${VHOSTS} -maxdepth 1 -name "*.conf" -exec grep -E "\binclude\s+${VHOSTS}/.+;" {} \; | sed -E "s/.*\binclude\b.*\/([^\/]+)\/[^\/]+/\1/g;" | sort | uniq`
-for domain in `echo $DOMAINS | sed "s/\s\+/\n/g"`; do
-    domain_sub_dir="${VHOSTS}/${domain}"
-    domain_log_dir="${LOG}/${domain}"
-    domain_cert_dir="${CERT_DIR}/certs/${domain}"
-    domain_conf="${VHOSTS}/${domain}.conf"
+get_domain_conf() {
+    local domain="$1"
+    local domain_conf="${VHOSTS}/${domain}.conf"
 
     if [ ! -e "${domain_conf}" ]; then
         domain_conf="$(grep -rl -E "\binclude .*/${domain}/.+;" ${VHOSTS}/*.conf | head -n 1)"
     fi
     if [ ! -e "${domain_conf}" ]; then
-        echo "No configuration file found for the domain ${domain}, skip it."
-        continue
+        echo ""
+    else
+        echo "${domain_conf}"
     fi
+}
 
-    if [ "${CERT_CHALLENGE_TYPE}" = "alpn" ]; then
-        if [ "x$(grep -E 'listen .*\b443\b' "${domain_conf}")" != "x" ]; then
-            sed -i -E 's/(listen .*)\b443\b(.*);/\120443\2;/g;' "${domain_conf}"
+matched_domain_list() {
+    local domain="$1"
+    local domains=( "$2" )
+    local top_domain=$(get_top_domains ${domain})
+
+    for d in "${domains[@]}"; do
+        if [[ "${top_domain}" = "${d}" || "${domain}" = "${d}" ]]; then
+            echo "true"
+            return
         fi
-    fi
-    if [ ! -e "${domain_sub_dir}/01_ssl.conf" ]; then
-        sed -i -E 's/(listen .+)\s+ssl(.*);/\1 \2;/g;' "${domain_conf}"
-    fi
+    done
+}
 
-    # https://www.vermouthx.com/2018/09/16/acme-sh/
-    eval "${ACME_CMD} -d ${domain} \
-            --ca-file '${domain_cert_dir}/chain.pem' \
-            --cert-file '${domain_cert_dir}/cert.pem' \
-            --key-file '${domain_cert_dir}/privkey.pem' \
-            --fullchain-file '${domain_cert_dir}/fullchain.pem' \
-            2>/dev/null"
-    if [ "$?" -ne "0" ]; then
-        continue
-    fi
+update_ssl_confs() {
+    local domain="$1"
+    local domain_conf="$2"
+    local domain_cert_dir="$3"
+    local domain_sub_dir="${VHOSTS}/${domain}"
+    local domain_log_dir="${LOG}/${domain}"
+
     if [ "x$(grep -E 'listen .*ssl' "${domain_conf}")" = "x" ]; then
         sed -i -E 's/(listen .+);/\1 ssl;/g;' "${domain_conf}"
     fi
@@ -85,7 +72,145 @@ access_log ${domain_log_dir}/access\$logdate.log main;
     echo "# Custom error page
 include /etc/nginx/epage.d/*.conf;
 " > "${domain_sub_dir}/03_epage.conf"
+}
+
+update_http_acme() {
+    local domain="$1"
+    local domain_conf="$2"
+    local domain_sub_dir="${VHOSTS}/${domain}"
+    local domain_log_dir="${LOG}/${domain}"
+    local domain_cert_dir="${CERT_DIR}/certs/${domain}"
+
+    if [ "${CERT_CHALLENGE_TYPE}" = "alpn" ]; then
+        if [ "x$(grep -E 'listen .*\b443\b' "${domain_conf}")" != "x" ]; then
+            sed -i -E 's/(listen .*)\b443\b(.*);/\120443\2;/g;' "${domain_conf}"
+        fi
+    fi
+
+    # https://www.vermouthx.com/2018/09/16/acme-sh/
+    eval "${ACME_CMD} -d ${domain} \
+            --ca-file '${domain_cert_dir}/chain.pem' \
+            --cert-file '${domain_cert_dir}/cert.pem' \
+            --key-file '${domain_cert_dir}/privkey.pem' \
+            --fullchain-file '${domain_cert_dir}/fullchain.pem' \
+            2>/dev/null"
+    if [ "$?" -ne "0" ]; then
+        echo "Can not update certificate for ${domain}."
+        return
+    fi
+
+    update_ssl_confs "${domain}" "${domain_conf}" "${domain_cert_dir}"
+}
+
+update_dns_acme() {
+    local domain="$1"
+    local domain_cert_dir="${CERT_DIR}/certs/${domain}"
+
+    cmd="${ACME_CMD} -d ${domain} -d '*.${domain}'"
+
+    eval "${cmd}" 2>&1 | sed '/integer expression expected/d'
+
+    echo "Check if TXT is valid by running: dig -t TXT _acme-challenge.${domain}"
+
+    read -p "Added TXT value for domain: _acme-challenge.${domain}? (Y/N): "  confirm
+    if [[ "${confirm}" != "Y" && "${confirm}" != "y" ]]; then
+        return 1
+    fi
+
+    eval "${cmd} --renew" 2>/dev/null
+    if [[ "$?" != "0" ]]; then
+        return 1
+    fi
+
+    eval "acme.sh \
+            --install-cert \
+            --config-home '${CERT_DIR}/config' \
+            -d ${domain} \
+            --ca-file '${domain_cert_dir}/chain.pem' \
+            --cert-file '${domain_cert_dir}/cert.pem' \
+            --key-file '${domain_cert_dir}/privkey.pem' \
+            --fullchain-file '${domain_cert_dir}/fullchain.pem'"
+    return 0
+}
+
+
+if [ -e ${LOCK} ]; then
+    echo "Other is updating certs now. Exit!"
+    exit 0
+else
+    touch ${LOCK}
+fi
+
+
+# https://github.com/acmesh-official/acme.sh
+ACME_CMD="acme.sh --issue \
+--config-home '${CERT_DIR}/config' \
+--accountemail '${CERT_EMAIL}' \
+-w '${CERT_DIR}' -k 4096"
+
+if [ "${CERT_STAGING}" = "true" ]; then
+    ACME_CMD="${ACME_CMD} --staging"
+fi
+if [ "${CERT_CHALLENGE_TYPE}" = "alpn" ]; then
+    ACME_CMD="${ACME_CMD} --alpn --tlsport 21443"
+fi
+if [ "${CERT_CHALLENGE_TYPE}" = "dns" ]; then
+    ACME_CMD="${ACME_CMD} --dns --yes-I-know-dns-manual-mode-enough-go-ahead-please"
+fi
+
+# include /etc/nginx/vhost.d/<domain-name>/*.conf;
+domains=(
+    $(find ${VHOSTS} -maxdepth 1 -name "*.conf" -exec grep -E "\binclude\s+${VHOSTS}/.+;" {} \; \
+        | sed -E "s/.*\binclude\b.*\/([^\/]+)\/[^\/]+/\1/g;" | sort | uniq)
+)
+
+http_mode_domains=( "${domains[@]}" )
+dns_mode_domains=( )
+if [ "${CERT_CHALLENGE_TYPE}" = "dns" ]; then
+    http_mode_domains=(  )
+    top_domains=(
+        $(get_top_domains ${domains[@]} | sort | uniq)
+    )
+    for top_domain in "${top_domains[@]}"; do
+        read -p "Use DNS acme mode for domain: *.${top_domain}? (Y/N): "  confirm
+        if [[ "${confirm}" != "Y" && "${confirm}" != "y" ]]; then
+            http_mode_domains=( "${http_mode_domains[@]}" "${top_domain}" )
+            continue
+        fi
+
+        echo "Update certificate in DNS mode for ${top_domain}."
+        update_dns_acme "${top_domain}"
+        if [ "$?" = "0" ]; then
+            dns_mode_domains=( "${dns_mode_domains[@]}" "${top_domain}" )
+        fi
+    done
+fi
+
+for domain in "${domains[@]}"; do
+    domain_sub_dir="${VHOSTS}/${domain}"
+    domain_conf="$(get_domain_conf "${domain}")"
+
+    if [ "x${domain_conf}" = "x" ]; then
+        echo "No configuration file found for the domain ${domain}, skip it."
+        continue
+    fi
+
+    if [[ ! -e "${domain_sub_dir}/01_ssl.conf" && "x${domain_conf}" != "x" ]]; then
+        sed -i -E 's/(listen .+)\s+ssl(.*);/\1 \2;/g;' "${domain_conf}"
+    fi
+
+    if [[ "${domains[@]}" = "${http_mode_domains[@]}" || "$(matched_domain_list "${domain}" "${http_mode_domains[@]}")" = "true" ]]; then
+        update_http_acme "${domain}" "${domain_conf}"
+    elif [ "$(matched_domain_list "${domain}" "${dns_mode_domains[@]}")" = "true" ]; then
+        top_domain=$(get_top_domains ${domain})
+        domain_cert_dir="${CERT_DIR}/certs/${top_domain}"
+
+        update_ssl_confs "${domain}" "${domain_conf}" "${domain_cert_dir}"
+    else
+        echo "Can not update certificate for ${domain}."
+    fi
 done
+
 
 chown -R nginx:nginx ${VHOSTS} ${CERT_DIR}/certs \
     && chmod go-rw -R ${VHOSTS} ${CERT_DIR}/certs

@@ -285,7 +285,8 @@ RUN [[ "${enable_geoip}" != "true" ]] \
     && rm -f /etc/nginx/conf.d/*geoip* \
     ; echo ""
 RUN mkdir -p ${VHOSTD} ${STREAMD} ${CERT_DIR} ${EPAGED}
-RUN chmod +x /usr/bin/build-certs /usr/bin/update-certs /usr/bin/watch-config /entrypoint.sh
+RUN chmod +x /usr/bin/build-certs /usr/bin/update-certs \
+        /usr/bin/watch-config /entrypoint.sh
 
 VOLUME ["${VHOSTD}", "${STREAMD}", "${EPAGED}", "${CERT_DIR}"]
 

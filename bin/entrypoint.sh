@@ -37,6 +37,11 @@ fi
 if [[ "${CERT_CHALLENGE_TYPE}" != "alpn" ]]; then
     rm -f /etc/nginx/vstream.d/10_stream_acme.conf
 fi
+if [[ "${CERT_CHALLENGE_TYPE}" != "dns" ]]; then
+    # Cancel automically updating
+    rm -f /var/spool/cron/crontabs/root
+fi
+
 for domain_conf in `find ${VHOSTD} -maxdepth 1 -name "*.conf"`; do
     domain_sub_dir="$(echo "${domain_conf}" | sed 's/.conf//g')"
     if [ "${CERT_CHALLENGE_TYPE}" = "alpn" ]; then
@@ -58,7 +63,7 @@ fi
 
 
 CERT_BUILD_CMD="/usr/sbin/nginx -s reload"
-if [[ "${DISABLE_CERTBOT}" != "true" ]]; then
+if [[ "${DISABLE_CERTBOT}" != "true" && "${CERT_CHALLENGE_TYPE}" != "dns" ]]; then
     CERT_BUILD_CMD="/usr/bin/build-certs >> '${CERT_DIR}/build.log' 2>&1; ${CERT_BUILD_CMD}"
 fi
 /usr/bin/watch-config -- "${CERT_BUILD_CMD}" &
