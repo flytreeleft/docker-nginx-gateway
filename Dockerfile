@@ -129,6 +129,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && make \
     && make install LUA_INCLUDE_DIR=$LUAJIT_INC LUA_LIB_DIR=/usr/local/share/lua/5.1 \
     # Install Lua moduels
+    && luarocks install lua-cjson \
     && luarocks install lua-resty-http \
     && luarocks install lua-resty-session \
     && luarocks install lua-resty-jwt \
