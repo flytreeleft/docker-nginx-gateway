@@ -18,7 +18,7 @@ case ${ENABLE_CUSTOM_ERROR_PAGE} in
 esac
 
 
-if [ ! -d "/opt/acme.sh" ]; then
+if [[ ! -d "/opt/acme.sh" && "${DISABLE_CERTBOT}" != "true" ]]; then
     pushd /opt/acme.sh-src
         # https://github.com/acmesh-official/acme.sh
         bash ./acme.sh \
@@ -34,10 +34,10 @@ if [ ! -d "/opt/acme.sh" ]; then
     popd
 fi
 
-if [[ "${CERT_CHALLENGE_TYPE}" != "alpn" ]]; then
+if [[ "${DISABLE_CERTBOT}" = "true" || "${CERT_CHALLENGE_TYPE}" != "alpn" ]]; then
     rm -f /etc/nginx/vstream.d/10_stream_acme.conf
 fi
-if [[ "${CERT_CHALLENGE_TYPE}" != "dns" ]]; then
+if [[ "${DISABLE_CERTBOT}" = "true" || "${CERT_CHALLENGE_TYPE}" = "dns" ]]; then
     # Cancel automically updating
     rm -f /var/spool/cron/crontabs/root
 fi
