@@ -42,18 +42,6 @@ if [[ "${DISABLE_CERTBOT}" = "true" || "${CERT_CHALLENGE_TYPE}" = "dns" ]]; then
     rm -f /var/spool/cron/crontabs/root
 fi
 
-for domain_conf in `find ${VHOSTD} -maxdepth 1 -name "*.conf"`; do
-    domain_sub_dir="$(echo "${domain_conf}" | sed 's/.conf//g')"
-    if [ "${CERT_CHALLENGE_TYPE}" = "alpn" ]; then
-        if [ "x$(grep -E 'listen .*\b443\b' "${domain_conf}")" != "x" ]; then
-            sed -i -E 's/(listen .*)\b443\b(.*);/\120443\2;/g;' "${domain_conf}"
-        fi
-    fi
-    if [ ! -e "${domain_sub_dir}/01_ssl.conf" ]; then
-        sed -i -E 's/(listen .+)\s+ssl(.*);/\1 \2;/g;' "${domain_conf}"
-    fi
-done
-
 
 # https://github.com/yandex/gixy#usage
 if [[ "${DISABLE_GIXY}" != "true" && -e /usr/bin/gixy ]]; then
