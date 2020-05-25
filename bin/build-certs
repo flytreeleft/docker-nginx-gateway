@@ -5,6 +5,9 @@ LOG="${NGINX_SITES_LOG}"
 # NOTE: All cluster nodes should share challenges
 LOCK="${CERT_DIR}/.lck"
 
+. /usr/bin/nginx-utils.sh
+
+
 get_top_domains() {
     echo "$@" | sed -E 's/\s+/\n/g' | awk -F. '{
         if ( length($3) == 0 ) { print $1"."$2 }
@@ -28,17 +31,20 @@ get_domain_conf() {
     fi
 }
 
-matched_domain_list() {
+is_matched_domain_list() {
     local domain="$1"
     local domains=( "$2" )
     local top_domain=$(get_top_domains ${domain})
 
+    local matched="false"
     for d in "${domains[@]}"; do
         if [[ "${top_domain}" = "${d}" || "${domain}" = "${d}" ]]; then
-            echo "true"
-            return
+            matched="true"
+            break
         fi
     done
+
+    [[ "${matched}" = "true" ]]
 }
 
 update_ssl_confs() {
@@ -48,30 +54,48 @@ update_ssl_confs() {
     local domain_sub_dir="${VHOSTS}/${domain}"
     local domain_log_dir="${LOG}/${domain}"
 
-    if [ "x$(grep -E 'listen .*ssl' "${domain_conf}")" = "x" ]; then
-        sed -i -E 's/(listen .+);/\1 ssl;/g;' "${domain_conf}"
-    fi
+    mkdir -p "${domain_sub_dir}"
 
-    mkdir -p "${domain_sub_dir}" "${domain_log_dir}"
-    chown -R nginx "${domain_log_dir}"
-
-    echo "# SSL and OCSP Stapling
+    cat > "${domain_sub_dir}/01_ssl.conf" <<EOF
+# SSL and OCSP Stapling
 ssl_stapling on;
 ssl_stapling_verify on;
 
 ssl_certificate ${domain_cert_dir}/fullchain.pem;
 ssl_certificate_key ${domain_cert_dir}/privkey.pem;
 ssl_trusted_certificate ${domain_cert_dir}/chain.pem;
-" > "${domain_sub_dir}/01_ssl.conf"
+EOF
 
-    echo "# Error and access log
+    cat > "${domain_sub_dir}/02_log.conf" <<EOF
+# Error and access log
 error_log ${domain_log_dir}/error.log debug;
 access_log ${domain_log_dir}/access\$logdate.log main;
-" > "${domain_sub_dir}/02_log.conf"
+EOF
 
-    echo "# Custom error page
+    cat > "${domain_sub_dir}/03_epage.conf" <<EOF
+# Custom error page
 include /etc/nginx/epage.d/*.conf;
-" > "${domain_sub_dir}/03_epage.conf"
+EOF
+}
+
+is_all_certs_existing_in() {
+    local cert_dir="$1"
+    local cert_files=(
+        "${cert_dir}/chain.pem"
+        "${cert_dir}/cert.pem"
+        "${cert_dir}/privkey.pem"
+        "${cert_dir}/fullchain.pem"
+    )
+
+    local all_exists="true"
+    for cert in "${cert_files[@]}"; do
+        if [[ ! -f "${cert}" ]]; then
+            all_exists="false"
+            break
+        fi
+    done
+
+    [[ "${all_exists}" = "true" ]]
 }
 
 update_http_acme() {
@@ -80,6 +104,10 @@ update_http_acme() {
     local domain_sub_dir="${VHOSTS}/${domain}"
     local domain_log_dir="${LOG}/${domain}"
     local domain_cert_dir="${CERT_DIR}/certs/${domain}"
+
+    if is_all_certs_existing_in "${domain_cert_dir}"; then
+        return
+    fi
 
     if [ "${CERT_CHALLENGE_TYPE}" = "alpn" ]; then
         if [ "x$(grep -E 'listen .*\b443\b' "${domain_conf}")" != "x" ]; then
@@ -94,7 +122,7 @@ update_http_acme() {
             --key-file '${domain_cert_dir}/privkey.pem' \
             --fullchain-file '${domain_cert_dir}/fullchain.pem' \
             2>/dev/null"
-    if [ "$?" -ne "0" ]; then
+    if [[ "$?" != "0" ]]; then
         echo "Can not update certificate for ${domain}."
         return
     fi
@@ -106,6 +134,11 @@ update_dns_acme() {
     local domain="$1"
     local domain_cert_dir="${CERT_DIR}/certs/${domain}"
 
+    if is_all_certs_existing_in "${domain_cert_dir}"; then
+        [[ 1 -eq 0 ]] # false
+        return
+    fi
+
     cmd="${ACME_CMD} -d ${domain} -d '*.${domain}'"
 
     eval "${cmd}" 2>&1 | sed '/integer expression expected/d'
@@ -114,12 +147,14 @@ update_dns_acme() {
 
     read -p "Added TXT value for domain: _acme-challenge.${domain}? (Y/N): "  confirm
     if [[ "${confirm}" != "Y" && "${confirm}" != "y" ]]; then
-        return 1
+        [[ 1 -eq 0 ]] # false
+        return
     fi
 
     eval "${cmd} --renew" 2>/dev/null
     if [[ "$?" != "0" ]]; then
-        return 1
+        [[ 1 -eq 0 ]] # false
+        return
     fi
 
     eval "acme.sh \
@@ -130,7 +165,8 @@ update_dns_acme() {
             --cert-file '${domain_cert_dir}/cert.pem' \
             --key-file '${domain_cert_dir}/privkey.pem' \
             --fullchain-file '${domain_cert_dir}/fullchain.pem'"
-    return 0
+
+    [[ "$?" != "0" ]]
 }
 
 
@@ -159,10 +195,7 @@ if [ "${CERT_CHALLENGE_TYPE}" = "dns" ]; then
 fi
 
 # include /etc/nginx/vhost.d/<domain-name>/*.conf;
-domains=(
-    $(find ${VHOSTS} -maxdepth 1 -name "*.conf" -exec grep -E "\binclude\s+${VHOSTS}/.+;" {} \; \
-        | sed -E "s/.*\binclude\b.*\/([^\/]+)\/[^\/]+/\1/g;" | sort | uniq)
-)
+domains=( $(get_server_names_from "${VHOSTS}") )
 
 http_mode_domains=( "${domains[@]}" )
 dns_mode_domains=( )
@@ -174,14 +207,13 @@ if [ "${CERT_CHALLENGE_TYPE}" = "dns" ]; then
     for top_domain in "${top_domains[@]}"; do
         read -p "Use DNS acme mode for domain: *.${top_domain}? (Y/N): "  confirm
         if [[ "${confirm}" != "Y" && "${confirm}" != "y" ]]; then
-            http_mode_domains=( "${http_mode_domains[@]}" "${top_domain}" )
+            http_mode_domains+=( "${top_domain}" )
             continue
         fi
 
         echo "Update certificate in DNS mode for ${top_domain}."
-        update_dns_acme "${top_domain}"
-        if [ "$?" = "0" ]; then
-            dns_mode_domains=( "${dns_mode_domains[@]}" "${top_domain}" )
+        if update_dns_acme "${top_domain}"; then
+            dns_mode_domains+=( "${top_domain}" )
         fi
     done
 fi
@@ -195,13 +227,11 @@ for domain in "${domains[@]}"; do
         continue
     fi
 
-    if [[ ! -e "${domain_sub_dir}/01_ssl.conf" && "x${domain_conf}" != "x" ]]; then
-        sed -i -E 's/(listen .+)\s+ssl(.*);/\1 \2;/g;' "${domain_conf}"
-    fi
-
-    if [[ "${domains[@]}" = "${http_mode_domains[@]}" || "$(matched_domain_list "${domain}" "${http_mode_domains[@]}")" = "true" ]]; then
+    if [[ "${domains[@]}" = "${http_mode_domains[@]}" ]] || is_matched_domain_list "${domain}" "${http_mode_domains[@]}"; then
+        set -x
         update_http_acme "${domain}" "${domain_conf}"
-    elif [ "$(matched_domain_list "${domain}" "${dns_mode_domains[@]}")" = "true" ]; then
+        set +x
+    elif is_matched_domain_list "${domain}" "${dns_mode_domains[@]}"; then
         top_domain=$(get_top_domains ${domain})
         domain_cert_dir="${CERT_DIR}/certs/${top_domain}"
 

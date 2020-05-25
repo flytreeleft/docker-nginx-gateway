@@ -275,6 +275,8 @@ ADD config/10_default.conf /etc/nginx/conf.d/10_default.conf
 COPY config/crontab /var/spool/cron/crontabs/root
 ADD config/10_stream_acme.conf /etc/nginx/vstream.d/10_stream_acme.conf
 
+ADD bin/nginx-utils.sh /usr/bin/nginx-utils.sh
+ADD bin/nginx-utils.awk /usr/bin/nginx-utils.awk
 ADD bin/build-certs /usr/bin/build-certs
 ADD bin/update-certs /usr/bin/update-certs
 ADD bin/watch-config /usr/bin/watch-config

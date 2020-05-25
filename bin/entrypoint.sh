@@ -1,5 +1,7 @@
 #!/bin/bash
 
+. /usr/bin/nginx-utils.sh
+
 ERROR_PAGES=${EPAGED}
 if [[ "$(ls -A "${ERROR_PAGES}" 2>/dev/null)" = "" || "${ENABLE_CUSTOM_ERROR_PAGE}" = "force" ]]; then
     cp -r ${DEFAULT_ERROR_PAGES}/* ${ERROR_PAGES}
@@ -49,8 +51,12 @@ if [[ "${DISABLE_GIXY}" != "true" && -e /usr/bin/gixy ]]; then
     /usr/bin/gixy /etc/nginx/nginx.conf
 fi
 
+update_host_config_for /etc/nginx/nginx.conf
 
-CERT_BUILD_CMD="/usr/sbin/nginx -s reload"
+
+export -f update_host_config_for
+CERT_BUILD_CMD="update_host_config_for /etc/nginx/nginx.conf; /usr/sbin/nginx -s reload"
+
 if [[ "${DISABLE_CERTBOT}" != "true" && "${CERT_CHALLENGE_TYPE}" != "dns" ]]; then
     CERT_BUILD_CMD="/usr/bin/build-certs >> '${CERT_DIR}/build.log' 2>&1; ${CERT_BUILD_CMD}"
 fi

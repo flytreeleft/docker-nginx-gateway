@@ -1,10 +1,12 @@
 #!/bin/bash
 
-while [[ -n $1 ]]; do
-    case $1 in
+. /usr/bin/nginx-utils.sh
+
+while [[ -n "$1" ]]; do
+    case "$1" in
         --)
             shift
-            CMD=$@
+            CMD="$@"
             break
         ;;
     esac
@@ -12,44 +14,49 @@ while [[ -n $1 ]]; do
 done
 
 if [ "x$CMD" = "x" ]; then
-    echo "Usage: $0 -- COMMAND"
+    echo "Usage: $0 -- <Command>"
     exit 0
 fi
 
-VHOSTS="${VHOSTD}"
-STREAMS="${STREAMD}"
-EPAGES="${EPAGED}"
+
+CHECK_REF_FILE="/tmp/watch-config-check.ref"
+touch "${CHECK_REF_FILE}"
 
 update_ref() {
-    local file=$1
-    local timestamp=`date +%Y%m%d%H%M.%S`
+    local timestamp="$(date +%Y%m%d%H%M.%S)"
 
-    touch "${file}" -t ${timestamp}
+    touch "${CHECK_REF_FILE}" -t ${timestamp}
 }
 
-is_newer() {
-    local ref="$1"
+has_modified_anyof() {
     local result="false"
 
-    shift
     while [[ -n "$1" ]]; do
-        if [[ ! -e "$ref" || "x$(find "$1" -newer "$ref")" != "x" ]]; then
+        if [[ ! -e "${CHECK_REF_FILE}" || "x$(find "$1" -newer "${CHECK_REF_FILE}" 2>/dev/null)" != "x" ]]; then
             result="true"
             break
         fi
         shift
     done
 
-    echo "$result"
+    [[ "$result" = "true" ]]
 }
 
-sleep 10s && eval "${CMD}"
+run_cmd() {
+    local cmd="$1"
 
-REF_FILE=/tmp/config-check.ref
+    eval "${cmd}"
+    update_ref
+}
+
+
+target_dirs=(
+    $(get_include_files_from /etc/nginx/nginx.conf | sed -E 's|/[^/]+$||g; /^\/etc\/nginx$/d;' | uniq)
+)
 while true; do
     sleep 10s
-    if [[ $(is_newer "${REF_FILE}" "${VHOSTS}" "${STREAMS}" "${EPAGES}") = "true" ]]; then
-        update_ref "${REF_FILE}"
-        eval "${CMD}"
+
+    if has_modified_anyof "${target_dirs[@]}"; then
+        run_cmd "${CMD}"
     fi
 done
