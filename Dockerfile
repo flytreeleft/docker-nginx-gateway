@@ -259,7 +259,9 @@ RUN mkdir -p /etc/nginx/ssl \
 
 RUN rm -rf /root/.cache
 
-RUN mkdir -p /var/log/letsencrypt /etc/nginx/lua /etc/nginx/vstream.d ${NGINX_LOG} ${NGINX_SITES_LOG}
+RUN mkdir -p /var/log/cron /var/log/letsencrypt \
+        /etc/nginx/lua /etc/nginx/vstream.d \
+        ${NGINX_LOG} ${NGINX_SITES_LOG}
 #RUN mkdir -p /var/www/html && chown -R nginx:nginx /var/www/html
 RUN rm -f /etc/nginx/conf.d/default.conf
 

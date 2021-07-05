@@ -20,6 +20,8 @@ case ${ENABLE_CUSTOM_ERROR_PAGE} in
 esac
 
 
+rm -f "${CERT_DIR}/.lck"
+
 if [[ ! -d "/opt/acme.sh" && "${DISABLE_CERTBOT}" != "true" ]]; then
     pushd /opt/acme.sh-src
         # https://github.com/acmesh-official/acme.sh
@@ -42,6 +44,8 @@ fi
 if [[ "${DISABLE_CERTBOT}" = "true" || "${CERT_CHALLENGE_TYPE}" = "dns" ]]; then
     # Cancel automically updating
     rm -f /var/spool/cron/crontabs/root
+else
+    crond -c /var/spool/cron/crontabs -b -L /var/log/cron/cron.log
 fi
 
 

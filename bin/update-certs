@@ -21,4 +21,4 @@ fi
     && /usr/sbin/nginx -s reload" \
     2>/dev/null
 
-rm ${LOCK}
+rm -f ${LOCK}
