@@ -112,6 +112,3 @@ update_host_config_for() {
     check_log_files_for "$source"
     update_server_ssl_for "$source"
 }
-
-# update_host_config_for /etc/nginx/nginx.conf
-# update_server_ssl_for /etc/nginx/nginx.conf

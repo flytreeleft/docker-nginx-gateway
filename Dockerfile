@@ -1,6 +1,6 @@
 # https://github.com/nginxinc/docker-nginx/blob/master/mainline/alpine/Dockerfile
 FROM alpine:3.10
-MAINTAINER flytreeleft <flytreeleft@126.com>
+LABEL author="flytreeleft@crazydan.org"
 
 
 ENV LUA_JIT_VERSION 2.1-20190912

@@ -15,11 +15,14 @@ BEGIN {
         else if ( match(line, /^[[:space:]]*\}/) ) {
             current_block_index += 1
         }
+        # listen 443 ssl;
+        # listen [::]:443 ssl;
         else if ( match(line, /^[[:space:]]*listen[[:space:]]+.+;/) ) {
             listen_directive_block_indexes[content_lines_index] = current_block_index
         }
         else if ( match(line, /^[[:space:]]*include[[:space:]]+.+;/) ) {
             include_file = line
+            # include /etc/nginx/vhost.d/<domain-name>/*.conf;
             gsub(/^[[:space:]]*include[[:space:]]+|[[:space:]]*;.*$/, " ", include_file)
 
             file = include_files_in_block[current_block_index]
@@ -42,6 +45,7 @@ BEGIN {
         }
 
         listen_directive = line
+        # listen 443 ssl; # ssl enabled
         if ( ! match(listen_directive, /[[:space:]]+ssl.*;|;[[:space:]]+#[[:space:]]+ssl enabled/) ) {
             print listen_directive
             continue

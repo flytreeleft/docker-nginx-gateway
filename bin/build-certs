@@ -1,11 +1,31 @@
 #!/bin/bash
 
+SHOULD_NOT_RUN_CERTBOT="$1"
+DISABLE_DEBUG="$2"
+
 VHOSTS="${VHOSTD}"
 LOG="${NGINX_SITES_LOG}"
 # NOTE: All cluster nodes should share challenges
 LOCK="${CERT_DIR}/.lck"
 
 . /usr/bin/nginx-utils.sh
+
+
+# https://github.com/acmesh-official/acme.sh
+ACME_CMD="acme.sh --issue \
+--config-home '${CERT_DIR}/config' \
+--accountemail '${CERT_EMAIL}' \
+-w '${CERT_DIR}' -k 4096"
+
+if [ "${CERT_STAGING}" = "true" ]; then
+    ACME_CMD="${ACME_CMD} --staging"
+fi
+if [ "${CERT_CHALLENGE_TYPE}" = "alpn" ]; then
+    ACME_CMD="${ACME_CMD} --alpn --tlsport 21443"
+fi
+if [ "${CERT_CHALLENGE_TYPE}" = "dns" ]; then
+    ACME_CMD="${ACME_CMD} --dns --yes-I-know-dns-manual-mode-enough-go-ahead-please"
+fi
 
 
 get_top_domains() {
@@ -56,6 +76,7 @@ update_ssl_confs() {
 
     mkdir -p "${domain_sub_dir}"
 
+    echo "Create ${domain_sub_dir}/01_ssl.conf ..."
     cat > "${domain_sub_dir}/01_ssl.conf" <<EOF
 # SSL and OCSP Stapling
 ssl_stapling on;
@@ -66,12 +87,14 @@ ssl_certificate_key ${domain_cert_dir}/privkey.pem;
 ssl_trusted_certificate ${domain_cert_dir}/chain.pem;
 EOF
 
+    echo "Create ${domain_sub_dir}/02_log.conf ..."
     cat > "${domain_sub_dir}/02_log.conf" <<EOF
 # Error and access log
 error_log ${domain_log_dir}/error.log debug;
 access_log ${domain_log_dir}/access\$logdate.log main;
 EOF
 
+    echo "Create ${domain_sub_dir}/03_epage.conf ..."
     cat > "${domain_sub_dir}/03_epage.conf" <<EOF
 # Custom error page
 include /etc/nginx/epage.d/*.conf;
@@ -106,6 +129,15 @@ update_http_acme() {
     local domain_cert_dir="${CERT_DIR}/certs/${domain}"
 
     if is_all_certs_existing_in "${domain_cert_dir}"; then
+        # just make sure the ssl.conf exist
+        update_ssl_confs "${domain}" "${domain_conf}" "${domain_cert_dir}"
+        return
+    fi
+
+    echo "Remove ${domain_sub_dir}/01_ssl.conf for new one ..."
+    rm -f "${domain_sub_dir}/01_ssl.conf"
+
+    if [ "${SHOULD_NOT_RUN_CERTBOT}" = "true" ]; then
         return
     fi
 
@@ -178,22 +210,6 @@ else
 fi
 
 
-# https://github.com/acmesh-official/acme.sh
-ACME_CMD="acme.sh --issue \
---config-home '${CERT_DIR}/config' \
---accountemail '${CERT_EMAIL}' \
--w '${CERT_DIR}' -k 4096"
-
-if [ "${CERT_STAGING}" = "true" ]; then
-    ACME_CMD="${ACME_CMD} --staging"
-fi
-if [ "${CERT_CHALLENGE_TYPE}" = "alpn" ]; then
-    ACME_CMD="${ACME_CMD} --alpn --tlsport 21443"
-fi
-if [ "${CERT_CHALLENGE_TYPE}" = "dns" ]; then
-    ACME_CMD="${ACME_CMD} --dns --yes-I-know-dns-manual-mode-enough-go-ahead-please"
-fi
-
 # include /etc/nginx/vhost.d/<domain-name>/*.conf;
 domains=( $(get_server_names_from "${VHOSTS}") )
 
@@ -228,7 +244,9 @@ for domain in "${domains[@]}"; do
     fi
 
     if [[ "${domains[@]}" = "${http_mode_domains[@]}" ]] || is_matched_domain_list "${domain}" "${http_mode_domains[@]}"; then
-        set -x
+        if [ "${DISABLE_DEBUG}" != "true" ]; then
+            set -x
+        fi
         update_http_acme "${domain}" "${domain_conf}"
         set +x
     elif is_matched_domain_list "${domain}" "${dns_mode_domains[@]}"; then

@@ -55,14 +55,17 @@ if [[ "${DISABLE_GIXY}" != "true" && -e /usr/bin/gixy ]]; then
     /usr/bin/gixy /etc/nginx/nginx.conf
 fi
 
-update_host_config_for /etc/nginx/nginx.conf
+# just check if the certification file exist
+/usr/bin/build-certs true true
 
 
 export -f update_host_config_for
 CERT_BUILD_CMD="update_host_config_for /etc/nginx/nginx.conf; /usr/sbin/nginx -s reload"
 
-if [[ "${DISABLE_CERTBOT}" != "true" && "${CERT_CHALLENGE_TYPE}" != "dns" ]]; then
-    CERT_BUILD_CMD="/usr/bin/build-certs >> '${CERT_DIR}/build.log' 2>&1; ${CERT_BUILD_CMD}"
+if [[ "${CERT_CHALLENGE_TYPE}" = "dns" ]]; then
+    echo "The cert challenge type is set to DNS, you should run the script /usr/bin/build-certs interactively"
+else
+    CERT_BUILD_CMD="/usr/bin/build-certs ${DISABLE_CERTBOT} >> '${CERT_DIR}/build.log' 2>&1; ${CERT_BUILD_CMD}"
 fi
 /usr/bin/watch-config -- "${CERT_BUILD_CMD}" &
 

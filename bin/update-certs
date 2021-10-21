@@ -15,6 +15,7 @@ fi
     --cron \
     --home /opt/acme.sh \
     --config-home "${CERT_DIR}/config" \
+    "$@" \
     --reloadcmd "\
     chown -R nginx:nginx ${VHOSTD} ${CERT_DIR}/certs \
     && chmod go-rw -R ${VHOSTD} ${CERT_DIR}/certs \
