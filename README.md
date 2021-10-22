@@ -6,7 +6,7 @@ A tiny, flexable, configurable Nginx Gateway (reverse proxy) Docker image based 
 ## Features
 
 - Enable HTTPS and [OCSP Stapling](https://tools.ietf.org/html/rfc4366#section-3.6) with [Let’s Encrypt](https://letsencrypt.org/).
-- Automatically register [Let’s Encrypt](https://letsencrypt.org/) certificate for new domain and update certificates via [certbot](https://certbot.eff.org/docs/using.html).
+- Automatically register [Let’s Encrypt](https://letsencrypt.org/) certificate for new domain and update certificates via [acme.sh](https://github.com/acmesh-official/acme.sh).
 - Support to display your custom error pages randomly.
 - Support to load and execute [Lua](https://github.com/openresty/lua-nginx-module) codes.
 - Support to proxy HTTP and TCP stream.
