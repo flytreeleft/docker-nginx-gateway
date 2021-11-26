@@ -20,6 +20,7 @@ fi
 
 
 CHECK_REF_FILE="/tmp/watch-config-check.ref"
+touch "${CHECK_REF_FILE}"
 
 update_ref() {
     local timestamp="$(date +%Y%m%d%H%M.%S)"

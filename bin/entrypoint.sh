@@ -57,6 +57,12 @@ fi
 
 # just check if the certification file exist
 /usr/bin/build-certs true true
+# create missing log
+check_log_files_for /etc/nginx/nginx.conf
+# and remove invaild ssl listen
+if [[ "${DISABLE_CERTBOT}" = "true" ]]; then
+    update_server_ssl_for /etc/nginx/nginx.conf
+fi
 
 
 export -f update_host_config_for
