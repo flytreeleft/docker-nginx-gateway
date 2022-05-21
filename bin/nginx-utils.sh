@@ -80,7 +80,7 @@ check_log_files_for() {
             continue
         fi
         echo "  - '$log' is creating..."
-        touch "$log" && chown nginx "$log" && chmod go-rwx "$log"
+        touch "$log" && chown nginx "$log_dir" && chmod go-rwx "$log_dir"
     done
 }
 
