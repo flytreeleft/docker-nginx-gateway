@@ -138,6 +138,7 @@ update_http_acme() {
     rm -f "${domain_sub_dir}/01_ssl.conf"
 
     if [ "${SHOULD_NOT_RUN_CERTBOT}" = "true" ]; then
+        update_server_ssl_for "${domain_conf}"
         return
     fi
 

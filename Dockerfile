@@ -255,7 +255,11 @@ ENV NGINX_LOG=/var/log/nginx
 ENV NGINX_SITES_LOG=/var/log/nginx/sites
 
 RUN mkdir -p /etc/nginx/ssl \
-    && openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
+    && openssl dhparam -out /etc/nginx/ssl/dhparam.pem 4096 \
+    && openssl req -x509 -nodes -days 36500 -newkey rsa:4096 \
+        -subj "/C=CC/ST=STT/L=LL/O=OO/CN=example.com" \
+        -keyout /etc/nginx/ssl/default_https_ssl.key \
+        -out /etc/nginx/ssl/default_https_ssl.crt
 
 RUN rm -rf /root/.cache
 
@@ -273,6 +277,7 @@ ADD config/02_proxy.conf /etc/nginx/conf.d/02_proxy.conf
 ADD config/03_geoip2.conf /etc/nginx/conf.d/03_geoip2.conf
 ADD config/00_log_with_geoip.conf /etc/nginx/conf.d/00_log_with_geoip.conf
 ADD config/10_default.conf /etc/nginx/conf.d/10_default.conf
+ADD config/10_default_https.conf /etc/nginx/conf.d/10_default_https.conf
 # NOTE: The other crontab file will not be scaned
 COPY config/crontab /var/spool/cron/crontabs/root
 ADD config/10_stream_acme.conf /etc/nginx/vstream.d/10_stream_acme.conf

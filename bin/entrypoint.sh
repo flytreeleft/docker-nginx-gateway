@@ -41,6 +41,9 @@ fi
 if [[ "${DISABLE_CERTBOT}" = "true" || "${CERT_CHALLENGE_TYPE}" != "alpn" ]]; then
     rm -f /etc/nginx/vstream.d/10_stream_acme.conf
 fi
+if [[ "${DISABLE_DEFAULT_HTTPS_SERVER}" = "true" ]]; then
+    rm -f /etc/nginx/conf.d/10_default_https.conf
+fi
 if [[ "${DISABLE_CERTBOT}" = "true" || "${CERT_CHALLENGE_TYPE}" = "dns" ]]; then
     # Cancel automically updating
     rm -f /var/spool/cron/crontabs/root
