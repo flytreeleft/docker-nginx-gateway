@@ -1,2 +1,2 @@
 # m h  dom mon dow   command
-41 6,15 * * *       /usr/bin/update-certs 2>&1
+41 6,15 * * *       /usr/bin/update-certs

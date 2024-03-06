@@ -10,16 +10,19 @@ else
     touch ${LOCK}
 fi
 
+
+reloadcmd="chown -R nginx:nginx ${VHOSTD} ${CERT_DIR}/certs \
+    && chmod go-rw -R ${VHOSTD} ${CERT_DIR}/certs \
+    && /usr/sbin/nginx -s reload"
+
 # https://github.com/acmesh-official/acme.sh
 /usr/bin/acme.sh \
     --cron \
     --home /opt/acme.sh \
     --config-home "${CERT_DIR}/config" \
+    --reloadcmd "${reloadcmd}" \
     "$@" \
-    --reloadcmd "\
-    chown -R nginx:nginx ${VHOSTD} ${CERT_DIR}/certs \
-    && chmod go-rw -R ${VHOSTD} ${CERT_DIR}/certs \
-    && /usr/sbin/nginx -s reload" \
-    2>/dev/null
+    >> "${CERT_DIR}/update.log" \
+    2>&1
 
 rm -f ${LOCK}
